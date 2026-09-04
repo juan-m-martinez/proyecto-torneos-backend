@@ -1,0 +1,16 @@
+{
+  "name": "proyecto-torneos",
+  "version": "1.0.0",
+  "description": "API REST base para una plataforma de torneos deportivos - Backend II",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "mongoose": "^8.18.0"
+  }
+}
