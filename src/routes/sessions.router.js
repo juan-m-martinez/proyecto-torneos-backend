@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { sessionsPlaceholder } from "../controllers/sessions.controller.js";
+import { register } from "../controllers/sessions.controller.js";
 
 const router = Router();
 
-router.get("/", sessionsPlaceholder);
+router.post("/register", register); // registro
 
 export default router;
