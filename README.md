@@ -24,17 +24,22 @@ La autenticación mediante JWT y cookies está implementada en esta entrega. La 
 
 ## Tecnologías
 
-- Node.js
-- Express
-- MongoDB Atlas
-- Mongoose
-- JavaScript
-- npm
-- dotenv
-- bcrypt
-- Módulos ESM
-- Postman
-- Git y GitHub
+- Node.js → entorno de ejecución de JavaScript del lado del servidor.
+- Express → framework utilizado para crear la API REST y definir rutas y middlewares.
+- MongoDB Atlas → servicio de base de datos MongoDB utilizado para almacenar la información.
+- Mongoose → ODM utilizado para conectar Node.js con MongoDB y definir los modelos.
+- JavaScript → lenguaje utilizado para desarrollar el backend.
+- npm → gestor de paquetes utilizado para instalar y administrar dependencias.
+- dotenv → carga las variables de entorno desde el archivo `.env`.
+- bcrypt → genera y compara hashes de contraseñas.
+- jsonwebtoken → genera y verifica tokens JWT para la autenticación.
+- cookie-parser → permite leer y administrar cookies HTTP.
+- Passport.js → centraliza y administra las estrategias de autenticación.
+- passport-local → estrategia de Passport utilizada para `register` y `login`.
+- passport-jwt → estrategia de Passport utilizada para verificar el JWT en `current`.
+- Módulos ESM → sistema de módulos utilizado para organizar imports y exports.
+- Postman → herramienta utilizada para probar los endpoints de la API.
+- Git y GitHub → control de versiones y almacenamiento remoto del proyecto.
 
 ## Instalación
 
@@ -259,8 +264,6 @@ Contraseña recibida
      MongoDB
 
 ## Registro de usuarios
- 
-## Registro de usuarios
 
 Endpoint:
 
@@ -274,8 +277,6 @@ mediante bcrypt y crea el usuario en MongoDB Atlas.
 
 El rol asignado durante el registro público es `user` y no puede ser
 modificado mediante el request.
-
-## Body
 
 ## Body
 
@@ -602,14 +603,10 @@ El archivo `.env` está incluido en `.gitignore.`
 
 ## Próximas etapas
 
-- Passport.
 - Roles y autorización.
 - CRUD de torneos.
 - Categorías.
 - Inscripciones.
 - Control de cupos.
 - Notificaciones.
-
-## Importante
-
-No subir `.env`, `node_modules` ni credenciales al repositorio.
+- Integración con proveedores externos de autenticación, como Google o GitHub.
