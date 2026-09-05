@@ -1,8 +1,15 @@
 # Plataforma de Torneos Deportivos
 
-## Pre-entrega 3 — Autenticación con JWT y cookies
+## Pre-entrega 4 — Autenticación con Passport.js
 
-API REST inicial para una plataforma de torneos deportivos. Esta entrega prepara una arquitectura por capas para futuras funcionalidades.
+Esta entrega refactoriza el sistema de autenticación existente para centralizar
+los procesos de registro, login y validación de sesión mediante Passport.js,
+manteniendo el comportamiento externo de la API.
+
+Se utilizan estrategias independientes para:
+- register
+- login
+- current
 
 ## Temática
 
@@ -39,7 +46,7 @@ Requisitos:
 
 ```bash
 git clone <URL_DEL_REPOSITORIO>
-cd proyecto-torneos-pre-entrega-1
+cd proyecto-torneos-backend
 npm install
 ```
 
@@ -56,6 +63,8 @@ JWT_EXPIRES_IN=1h
 ```
 
 La variable MONGO_URL debe contener la cadena de conexión de MongoDB Atlas.
+JWT_SECRET se utiliza para firmar y verificar los tokens JWT.
+JWT_EXPIRES_IN define el tiempo de expiración del JWT.
 No subir nunca el archivo .env al repositorio.
 
 ## Ejecución
@@ -80,76 +89,204 @@ http://localhost:8080
 ## Estructura
 
 ```text
-proyecto-torneos-pre-entrega-1/
+proyecto-torneos-backend/
 ├── src/
-│   ├── app.js
-│   ├── server.js
+│   ├── app.js                         → configura la aplicación Express y Passport.
+│   ├── server.js                      → inicia el servidor y conecta MongoDB.
 │   ├── config/
-│   │   └── database.js
+│   │   ├── database.js                → configura la conexión con MongoDB.
+│   │   └── passport.config.js         → centraliza las estrategias de Passport.
 │   ├── routes/
-│   │   ├── events.router.js
-│   │   └── sessions.router.js
+│   │   ├── events.router.js           → define las rutas de eventos.
+│   │   └── sessions.router.js         → define las rutas de autenticación.
 │   ├── controllers/
-│   │   ├── events.controller.js
-│   │   └── sessions.controller.js
+│   │   ├── events.controller.js       → maneja las solicitudes de eventos.
+│   │   └── sessions.controller.js     → maneja las respuestas de autenticación.
 │   ├── services/
-│   │   └── sessions.service.js
+│   │   └── .gitkeep                   → mantiene preparada la carpeta de servicios.
 │   ├── repositories/
-│   │   └── users.repository.js
+│   │   └── users.repository.js        → comunica la aplicación con el DAO.
 │   ├── dao/
-│   │   └── users.dao.js
+│   │   └── users.dao.js               → realiza operaciones sobre usuarios.
 │   ├── models/
-│   │   ├── User.js
-│   │   └── Event.js
-|   ├── middlewares/
-│   |    └── auth.middleware.js → protege rutas
-|   └── utils/
-|       ├── hash.js → bcrypt
-|       └── jwt.js → generar/verificar JWT
-├── .env.example
-├── .gitignore
-├── package.json
-├── package-lock.json
-└── README.md
+│   │   ├── User.js                    → define el modelo de usuario en MongoDB.
+│   │   └── Event.js                   → define el modelo de eventos.
+│   └── utils/
+│       ├── hash.js                    → genera y verifica hashes con bcrypt.
+│       └── jwt.js                     → genera y verifica tokens JWT.
+├── .env.example                       → muestra las variables de entorno necesarias.
+├── .gitignore                         → indica qué archivos no debe subir Git.
+├── package.json                       → contiene dependencias y scripts del proyecto.
+├── package-lock.json                  → registra las versiones exactas de dependencias.
+└── README.md                          → documentación del proyecto.
 ```
 
 ## Arquitectura
 
-El registro de usuarios utiliza una arquitectura por capas:
+La aplicación utiliza una arquitectura por capas y centraliza la autenticación mediante Passport.js.
 
- POST /api/sessions/register
-            ↓
-   sessions.router.js
-            ↓
-  sessions.controller.js
-            ↓
-   sessions.service.js
-            ↓
-  users.repository.js
-            ↓
-     users.dao.js
-            ↓
-        User.js
-            ↓
-     MongoDB Atlas
+### Registro
 
-La contraseña es procesada mediante bcrypt antes de ser almacenada
- Contraseña recibida
+POST /api/sessions/register
+
+                    ↓
+
+           sessions.router.js
+
+                    ↓
+
+        Passport "register"
+
+                    ↓
+
+        sessions.controller.js
+
+                    ↓
+
+          users.repository.js
+
+                    ↓
+
+             users.dao.js
+
+                    ↓
+
+                User.js
+
+                    ↓
+
+             MongoDB Atlas
+
+La estrategia `register` de Passport se encarga de validar los datos,
+normalizar el email, verificar duplicados, generar el hash mediante bcrypt
+y crear el usuario.
+
+El controller recibe el usuario autenticado mediante `req.user` y genera
+la respuesta HTTP sin incluir la contraseña.
+
+### Login
+
+POST /api/sessions/login
+
+                    ↓
+
+           sessions.router.js
+
+                    ↓
+
+          Passport "login"
+
+                    ↓
+
+        users.repository.js
+
+                    ↓
+
+             users.dao.js
+
+                    ↓
+
+                User.js
+
+                    ↓
+
+             MongoDB Atlas
+
+                    ↓
+
+                req.user
+
+                    ↓
+
+        sessions.controller.js
+
+                    ↓
+
+              JWT + cookie
+
+La estrategia `login` valida las credenciales mediante bcrypt.
+
+Luego de una autenticación exitosa, el controller genera el JWT y lo
+almacena en la cookie `currentUser`.
+
+### Current
+
+GET /api/sessions/current
+
+                    ↓
+
+           sessions.router.js
+
+                    ↓
+
+         Passport "current"
+
+                    ↓
+
+          cookie currentUser
+
+                    ↓
+
+              JWT válido
+
+                    ↓
+
+                req.user
+
+                    ↓
+
+        sessions.controller.js
+
+La estrategia `current` obtiene el JWT desde la cookie `currentUser`,
+verifica su firma utilizando `JWT_SECRET` y coloca el payload en `req.user`.
+
+### Hash de contraseñas
+
+La contraseña nunca se almacena directamente.
+
+Contraseña recibida
+
         ↓
+
       bcrypt
+
         ↓
+
    Hash seguro
+
         ↓
+
      MongoDB
 
 ## Registro de usuarios
  
- Endpoint
- 
- POST /api/sessions/register
+## Registro de usuarios
+
+Endpoint:
+
+POST /api/sessions/register
+
+El registro se realiza mediante la estrategia `register` de Passport.js.
+
+La estrategia valida los datos recibidos, normaliza el email, verifica que
+no exista otro usuario con el mismo email, genera el hash de la contraseña
+mediante bcrypt y crea el usuario en MongoDB Atlas.
+
+El rol asignado durante el registro público es `user` y no puede ser
+modificado mediante el request.
 
 ## Body
 
+## Body
+
+```json
+{
+  "first_name": "Carlos",
+  "last_name": "Gomez",
+  "email": "carlos.gomez@mail.com",
+  "password": "Carlos123"
+}
+```
 Los campos obligatorios son:
 
 - first_name
@@ -202,6 +339,7 @@ El endpoint valida:
 - Longitud mínima de 6 caracteres para la contraseña.
 - Email duplicado.
 - Normalización del email mediante trim() y toLowerCase().
+- El rol se asigna automáticamente como `user` y no puede ser manipulado desde el registro público.
 
 ## Campos faltantes
 
@@ -270,6 +408,37 @@ Se verificaron mediante Postman los siguientes casos:
 
 ## Autenticación
 
+### Register
+
+Endpoint:
+
+POST /api/sessions/register
+
+Permite registrar un nuevo usuario.
+
+La estrategia `register` de Passport.js se encarga de validar los datos, normalizar el email, verificar que no exista otro usuario con el mismo email, generar el hash de la contraseña mediante bcrypt y crear el usuario.
+
+El rol se establece como `user` por defecto y no puede ser manipulado desde el registro público.
+
+Respuesta exitosa:
+
+Código HTTP: `201 Created`
+
+```json
+{
+  "status": "success",
+  "payload": {
+    "id": "...",
+    "first_name": "Usuario",
+    "last_name": "Prueba",
+    "email": "usuario.passport@test.com",
+    "role": "user"
+  }
+}
+```
+
+La contraseña nunca se incluye en la respuesta.
+
 ### Login
 
 Endpoint:
@@ -287,9 +456,9 @@ Request:
 }
 ```
 
-La contraseña se compara con el hash almacenado mediante bcrypt.
+La estrategia `login` de Passport.js busca el usuario por email y compara la contraseña con el hash almacenado mediante bcrypt.
 
-Si las credenciales son correctas, se genera un JWT firmado con `JWT_SECRET`.
+Si las credenciales son correctas, Passport coloca el usuario autenticado en `req.user`. Luego, el controller genera un JWT firmado con `JWT_SECRET`.
 
 El token se almacena en una cookie llamada `currentUser` con las siguientes características:
 
@@ -326,9 +495,9 @@ Endpoint:
 
 GET /api/sessions/current
 
-Esta ruta está protegida por el middleware de autenticación.
+Esta ruta está protegida por la estrategia `current` de Passport.js.
 
-El middleware lee la cookie `currentUser`, verifica el JWT y coloca la información del usuario en `req.user`.
+La estrategia `current` lee el JWT desde la cookie `currentUser`, verifica su validez y coloca la información del usuario en `req.user`.
 
 Request:
 
@@ -348,6 +517,17 @@ Código HTTP: `200 OK`
     "email": "carlos.gomez@mail.com",
     "role": "user"
   }
+}
+```
+
+Si no existe una cookie válida o el JWT no es válido:
+
+Código HTTP: `401 Unauthorized`
+
+```json
+{
+  "status": "error",
+  "message": "No autenticado"
 }
 ```
 

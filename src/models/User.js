@@ -34,7 +34,7 @@ const userSchema = new mongoose.Schema( /* Molde de informacion */
     },
   },
   {
-    timestamps: true,
+    timestamps: true, /* Actualizacion del user */
   }
 );
 
