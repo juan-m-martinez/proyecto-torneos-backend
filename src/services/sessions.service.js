@@ -1,17 +1,13 @@
 import usersRepository from "../repositories/users.repository.js";
-import { createHash } from "../utils/hash.js";
+import { createHash, isValidPassword } from "../utils/hash.js";
+import { generateToken } from "../utils/jwt.js";
 
 class SessionsService {
   async register(userData) {
-    const {
-      first_name,
-      last_name,
-      email,
-      password,
-    } = userData; /* extración de datos*/
+const { first_name, last_name, email, password } = userData; // extracción de datos
 
     // Validar campos obligatorios
-    if (!first_name || !last_name || !email || !password) { /* requisitos */ 
+    if (!first_name || !last_name || !email || !password) {
       const error = new Error("Faltan campos obligatorios");
       error.statusCode = 400;
       throw error;
@@ -27,7 +23,7 @@ class SessionsService {
     }
 
     // Validar longitud mínima de contraseña 
-    if (password.length < 6) { 
+    if (password.length < 6) {
       const error = new Error(
         "La contraseña debe tener al menos 6 caracteres"
       );
@@ -36,9 +32,9 @@ class SessionsService {
     }
 
     // Normalizar email
-    const normalizedEmail = email.trim().toLowerCase(); // espacios y mayúscula
+    const normalizedEmail = email.trim().toLowerCase();// espacios y mayúscula
 
-    // Verificar si el email ya existe
+     // Verificar si el email ya existe
     const existingUser =
       await usersRepository.findByEmail(normalizedEmail); // duplicados
 
@@ -49,7 +45,7 @@ class SessionsService {
     }
 
     // Generar hash de la contraseña
-    const hashedPassword = await createHash(password); //hash
+    const hashedPassword = await createHash(password);//hash
 
     // Crear usuario
     const newUser = await usersRepository.create({
@@ -62,12 +58,48 @@ class SessionsService {
 
     // Respuesta sin password
     return {
-      id: newUser._id,
+      id: newUser._id.toString(),
       first_name: newUser.first_name,
       last_name: newUser.last_name,
       email: newUser.email,
       role: newUser.role,
     };
+  }
+
+  async login(email, password) {
+    if (!email || !password) {
+      const error = new Error("Credenciales inválidas");
+      error.statusCode = 401;
+      throw error;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const user = await usersRepository.findByEmail(normalizedEmail);
+
+    if (!user) {
+      const error = new Error("Credenciales inválidas");
+      error.statusCode = 401;
+      throw error;
+    }
+
+    const passwordValid = await isValidPassword(
+      password,
+      user.password
+    );
+
+    if (!passwordValid) {
+      const error = new Error("Credenciales inválidas");
+      error.statusCode = 401;
+      throw error;
+    }
+
+    const payload = {
+      id: user._id.toString(),
+      email: user.email,
+      role: user.role,
+    };
+    return generateToken(payload);
   }
 }
 

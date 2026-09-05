@@ -1,19 +1,19 @@
 # Plataforma de Torneos Deportivos
 
-## Pre-entrega 2 — Registro seguro de usuarios
+## Pre-entrega 3 — Autenticación con JWT y cookies
 
 API REST inicial para una plataforma de torneos deportivos. Esta entrega prepara una arquitectura por capas para futuras funcionalidades.
 
-### Temática
+## Temática
 
 La plataforma está orientada a la gestión de **torneos deportivos**.
 
 Roles previstos:
-- `ADMIN`: administración general.
-- `ORGANIZER`: creación y administración de torneos.
-- `USER`: consulta e inscripción a torneos.
+- `admin`: administración general.
+- `organizer`: creación y administración de torneos.
+- `user`: consulta e inscripción a torneos.
 
-La autenticación, autorización, inscripciones y lógica completa de torneos quedan para próximas entregas.
+La autenticación mediante JWT y cookies está implementada en esta entrega. La autorización por roles, inscripciones y lógica completa de torneos quedan para próximas entregas.
 
 ## Tecnologías
 
@@ -52,6 +52,7 @@ PORT=8080
 NODE_ENV=development
 MONGO_URL=mongodb+srv://<usuario>:<password>@<cluster>.mongodb.net/torneos
 JWT_SECRET=change_this_secret
+JWT_EXPIRES_IN=1h
 ```
 
 La variable MONGO_URL debe contener la cadena de conexión de MongoDB Atlas.
@@ -100,9 +101,11 @@ proyecto-torneos-pre-entrega-1/
 │   ├── models/
 │   │   ├── User.js
 │   │   └── Event.js
-│   ├── middlewares/
-│   └── utils/
-│       └── hash.js
+|   ├── middlewares/
+│   |    └── auth.middleware.js → protege rutas
+|   └── utils/
+|       ├── hash.js → bcrypt
+|       └── jwt.js → generar/verificar JWT
 ├── .env.example
 ├── .gitignore
 ├── package.json
@@ -169,7 +172,7 @@ El campo role no debe enviarse en el registro público.
 
 El servidor asigna automáticamente: ` "role": "user" `
 
-# Respuesta exitosa:
+## Respuesta exitosa:
 
 Código HTTP: `201 Created`
 
@@ -190,7 +193,7 @@ Ejemplo:
 
 La contraseña nunca se devuelve en la respuesta.
 
-# Validaciones
+## Validaciones
 
 El endpoint valida:
 
@@ -200,7 +203,7 @@ El endpoint valida:
 - Email duplicado.
 - Normalización del email mediante trim() y toLowerCase().
 
-# Campos faltantes
+## Campos faltantes
 
 Código HTTP: `400 Bad Request`
 
@@ -213,7 +216,7 @@ Respuesta:
 }
 ```
 
-# Email inválido
+## Email inválido
 
 Código HTTP: `400 Bad Request`
 
@@ -226,7 +229,7 @@ Respuesta:
 }
 ```
 
-# Email duplicado
+## Email duplicado
 
 Código HTTP: `409 Conflict`
 
@@ -252,6 +255,126 @@ Se verificaron mediante Postman los siguientes casos:
 - Contraseña excluida de la respuesta.
 - Persistencia de usuarios en MongoDB Atlas.
 
+
+
+## Endpoints
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/health` | Verifica que el servidor esté activo. |
+| GET | `/api/events` | Obtiene la lista de eventos. |
+| POST | `/api/sessions/register` | Registra un nuevo usuario. |
+| POST | `/api/sessions/login` | Inicia sesión y genera la cookie de autenticación. |
+| GET | `/api/sessions/current` | Devuelve los datos del usuario autenticado. |
+| POST | `/api/sessions/logout` | Cierra la sesión y elimina la cookie de autenticación. |
+
+## Autenticación
+
+### Login
+
+Endpoint:
+
+POST /api/sessions/login
+
+Permite iniciar sesión con un usuario registrado.
+
+Request:
+
+```json
+{
+  "email": "carlos.gomez@mail.com",
+  "password": "Carlos123"
+}
+```
+
+La contraseña se compara con el hash almacenado mediante bcrypt.
+
+Si las credenciales son correctas, se genera un JWT firmado con `JWT_SECRET`.
+
+El token se almacena en una cookie llamada `currentUser` con las siguientes características:
+
+- `httpOnly: true`
+- `sameSite: "lax"`
+- `maxAge: 3600000`
+- `secure: true` únicamente en producción
+
+Respuesta exitosa:
+
+Código HTTP: `200 OK`
+
+```json
+{
+  "status": "success",
+  "message": "Login correcto"
+}
+```
+
+Si las credenciales son incorrectas:
+
+Código HTTP: `401 Unauthorized`
+
+```json
+{
+  "status": "error",
+  "message": "Credenciales inválidas"
+}
+```
+
+### Usuario autenticado
+
+Endpoint:
+
+GET /api/sessions/current
+
+Esta ruta está protegida por el middleware de autenticación.
+
+El middleware lee la cookie `currentUser`, verifica el JWT y coloca la información del usuario en `req.user`.
+
+Request:
+
+```http
+GET /api/sessions/current
+```
+
+Respuesta exitosa:
+
+Código HTTP: `200 OK`
+
+```json
+{
+  "status": "success",
+  "payload": {
+    "id": "...",
+    "email": "carlos.gomez@mail.com",
+    "role": "user"
+  }
+}
+```
+
+### Logout
+
+Endpoint:
+
+POST /api/sessions/logout
+
+Cierra la sesión eliminando la cookie de autenticación `currentUser`.
+
+Request:
+
+```http
+POST /api/sessions/logout
+```
+
+Respuesta exitosa:
+
+Código HTTP: `200 OK`
+
+```json
+{
+  "status": "success",
+  "message": "Sesión cerrada"
+}
+```
 
 ## Otras rutas
 
@@ -285,23 +408,20 @@ Respuesta:
 }
 ```
 
-### Seguridad
+## Seguridad
 
 No subir al repositorio:
 
-- .env
-- node_modules
+- `.env`
+- `node_modules`
 - Contraseñas
 - Credenciales de MongoDB Atlas
 - Secretos JWT
 
 El archivo `.env` está incluido en `.gitignore.`
 
-### Próximas etapas
+## Próximas etapas
 
-- Login.
-- JWT.
-- Cookies.
 - Passport.
 - Roles y autorización.
 - CRUD de torneos.
