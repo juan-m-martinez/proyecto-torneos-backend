@@ -5,13 +5,17 @@ import authorize from "../middlewares/authorize.middleware.js";
 
 import {
   getEvents,
+  getEventById,
   createEvent,
   updateEvent,
+  updateEventStatus
 } from "../controllers/events.controller.js";
 
 const router = Router();
 
 router.get("/", getEvents);
+
+router.get("/:id", getEventById);
 
 router.post(
   "/",
@@ -25,6 +29,13 @@ router.put(
   auth,
   authorize("organizer", "admin"),
   updateEvent
+);
+
+router.patch(
+  "/:id/status",
+  auth,
+  authorize("organizer", "admin"),
+  updateEventStatus
 );
 
 export default router;

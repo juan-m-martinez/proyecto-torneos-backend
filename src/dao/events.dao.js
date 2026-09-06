@@ -9,8 +9,23 @@ class EventsDAO {
     return await Event.findById(id);
   }
 
-  async findAll() {
-    return await Event.find();
+  async findAll(filters = {}, options = {}) {
+    const {
+      page = 1,
+      limit = 10,
+      sort = "date",
+    } = options;
+
+    const skip = (page - 1) * limit;
+
+    return await Event.find(filters)
+      .sort(sort)
+      .skip(skip)
+      .limit(limit);
+  }
+
+  async count(filters = {}) {
+    return await Event.countDocuments(filters);
   }
 
   async update(id, eventData) {
@@ -18,10 +33,6 @@ class EventsDAO {
       new: true,
       runValidators: true,
     });
-  }
-
-  async delete(id) {
-    return await Event.findByIdAndDelete(id);
   }
 }
 
