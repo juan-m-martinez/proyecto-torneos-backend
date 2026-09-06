@@ -2,7 +2,7 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import passport from "passport"; // Importa Passport para integrarlo con Express.
 import { configurePassport } from "./config/passport.config.js"; // Importa nuestra configuración centralizada.
-
+import adminRouter from "./routes/admin.router.js";
 import eventsRouter from "./routes/events.router.js";
 import sessionsRouter from "./routes/sessions.router.js";
 
@@ -16,6 +16,7 @@ app.use(passport.initialize()); // Inicializa Passport como middleware de Expres
 
 app.use("/api/events", eventsRouter);
 app.use("/api/sessions", sessionsRouter);
+app.use("/api/admin", adminRouter);
 
 app.get("/api/health", (req, res) => {
   res.json({

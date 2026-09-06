@@ -6,6 +6,7 @@ import {
     current,
     logout,
 } from "../controllers/sessions.controller.js";
+import auth from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
@@ -62,28 +63,7 @@ router.post("/login", (req, res, next) => {
 });
 
 // router.get("/current", auth, current);
-router.get("/current", (req, res, next) => {
-    passport.authenticate(
-        "current", //→ verifica JWT desde cookie
-        { session: false },
-        (error, user) => {
-            if (error) {
-                return next(error);
-            }
-
-            if (!user) {
-                return res.status(401).json({
-                    status: "error",
-                    message: "No autenticado",
-                });
-            }
-
-            req.user = user;
-
-            return current(req, res, next);
-        }
-    )(req, res, next);
-});
+router.get("/current", auth, current);
 
 router.post("/logout", logout);
 

@@ -1,15 +1,19 @@
 # Plataforma de Torneos Deportivos
 
-## Pre-entrega 4 — Autenticación con Passport.js
+## Pre-entrega 5 — Roles y autorización.
 
-Esta entrega refactoriza el sistema de autenticación existente para centralizar
-los procesos de registro, login y validación de sesión mediante Passport.js,
-manteniendo el comportamiento externo de la API.
+Esta entrega incorpora un sistema de autorización basado en roles,
+utilizando middlewares reutilizables para controlar el acceso a las
+rutas según los permisos de cada usuario.
 
-Se utilizan estrategias independientes para:
-- register
-- login
-- current
+La autenticación existente mediante Passport.js, JWT y cookies se mantiene
+como base del sistema.
+
+Se utilizan los roles:
+
+- user
+- organizer
+- admin
 
 ## Temática
 
@@ -18,9 +22,9 @@ La plataforma está orientada a la gestión de **torneos deportivos**.
 Roles previstos:
 - `admin`: administración general.
 - `organizer`: creación y administración de torneos.
-- `user`: consulta e inscripción a torneos.
+- `user`: consulta de torneos.
 
-La autenticación mediante JWT y cookies está implementada en esta entrega. La autorización por roles, inscripciones y lógica completa de torneos quedan para próximas entregas.
+La autenticación mediante JWT y cookies está implementada en esta entrega.
 
 ## Tecnologías
 
@@ -36,7 +40,7 @@ La autenticación mediante JWT y cookies está implementada en esta entrega. La 
 - cookie-parser → permite leer y administrar cookies HTTP.
 - Passport.js → centraliza y administra las estrategias de autenticación.
 - passport-local → estrategia de Passport utilizada para `register` y `login`.
-- passport-jwt → estrategia de Passport utilizada para verificar el JWT en `current`.
+- passport-jwt → dependencia disponible para estrategias JWT de Passport y futuras extensiones de autenticación.
 - Módulos ESM → sistema de módulos utilizado para organizar imports y exports.
 - Postman → herramienta utilizada para probar los endpoints de la API.
 - Git y GitHub → control de versiones y almacenamiento remoto del proyecto.
@@ -92,8 +96,6 @@ http://localhost:8080
 ```
 
 ## Estructura
-
-```text
 proyecto-torneos-backend/
 ├── src/
 │   ├── app.js                         → configura la aplicación Express y Passport.
@@ -102,20 +104,27 @@ proyecto-torneos-backend/
 │   │   ├── database.js                → configura la conexión con MongoDB.
 │   │   └── passport.config.js         → centraliza las estrategias de Passport.
 │   ├── routes/
+│   │   ├── admin.router.js            → define las rutas exclusivas de administración.
 │   │   ├── events.router.js           → define las rutas de eventos.
 │   │   └── sessions.router.js         → define las rutas de autenticación.
 │   ├── controllers/
 │   │   ├── events.controller.js       → maneja las solicitudes de eventos.
-│   │   └── sessions.controller.js     → maneja las respuestas de autenticación.
+│   │   ├── sessions.controller.js     → maneja las respuestas de autenticación.
+│   │   └── users.controller.js        → maneja la consulta de usuarios.
 │   ├── services/
 │   │   └── .gitkeep                   → mantiene preparada la carpeta de servicios.
 │   ├── repositories/
-│   │   └── users.repository.js        → comunica la aplicación con el DAO.
+│   │   ├── events.repository.js       → comunica la aplicación con el DAO de eventos.
+│   │   └── users.repository.js        → comunica la aplicación con el DAO de usuarios.
 │   ├── dao/
-│   │   └── users.dao.js               → realiza operaciones sobre usuarios.
+│   │   ├── events.dao.js               → realiza operaciones sobre eventos.
+│   │   └── users.dao.js                → realiza operaciones sobre usuarios.
 │   ├── models/
 │   │   ├── User.js                    → define el modelo de usuario en MongoDB.
 │   │   └── Event.js                   → define el modelo de eventos.
+│   ├── middlewares/
+│   │   ├── auth.middleware.js         → valida la sesión mediante JWT.
+│   │   └── authorize.middleware.js    → verifica los permisos según el rol.
 │   └── utils/
 │       ├── hash.js                    → genera y verifica hashes con bcrypt.
 │       └── jwt.js                     → genera y verifica tokens JWT.
@@ -124,11 +133,58 @@ proyecto-torneos-backend/
 ├── package.json                       → contiene dependencias y scripts del proyecto.
 ├── package-lock.json                  → registra las versiones exactas de dependencias.
 └── README.md                          → documentación del proyecto.
-```
 
 ## Arquitectura
 
-La aplicación utiliza una arquitectura por capas y centraliza la autenticación mediante Passport.js.
+La aplicación utiliza una arquitectura por capas:
+
+**Ruta → Middleware → Controller → Repository → DAO → Model**
+
+Cada capa tiene una responsabilidad específica:
+
+- **Routes:** reciben las solicitudes HTTP y determinan qué middlewares y controllers ejecutar.
+- **Middlewares:** validan autenticación y autorización antes de llegar al controller.
+- **Controllers:** reciben la solicitud, ejecutan la operación correspondiente y construyen la respuesta HTTP.
+- **Repositories:** funcionan como una capa intermedia entre los controllers y los DAO.
+- **DAO:** realiza las operaciones directamente sobre los modelos de MongoDB.
+- **Models:** definen la estructura de los documentos almacenados en MongoDB.
+
+### Flujo de autenticación y autorización
+
+Para acceder a una ruta protegida, el flujo es:
+
+```text
+Cliente
+   ↓
+Route
+   ↓
+auth.middleware
+   ↓
+¿JWT válido?
+   ├── No → 401 Unauthorized
+   │
+   └── Sí
+        ↓
+   authorize(...)
+        ↓
+   ¿Rol permitido?
+        ├── No → 403 Forbidden
+        │
+        └── Sí
+             ↓
+          Controller
+             ↓
+        Repository
+             ↓
+            DAO
+             ↓
+          MongoDB
+
+El `auth.middleware.js` valida el JWT almacenado en la cookie `currentUser` y coloca la información del usuario en req.user.
+
+El `authorize.middleware.js` recibe los roles permitidos para cada ruta y verifica que el usuario autenticado tenga uno de ellos.
+
+La generación del JWT continúa siendo responsabilidad del controller de login. Passport se utiliza para las estrategias de registro y login, mientras que la validación de acceso a rutas privadas se realiza mediante los middlewares correspondientes.
 
 ### Registro
 
@@ -224,7 +280,7 @@ GET /api/sessions/current
 
                     ↓
 
-         Passport "current"
+            auth.middleware.js
 
                     ↓
 
@@ -232,18 +288,18 @@ GET /api/sessions/current
 
                     ↓
 
-              JWT válido
+             JWT válido
 
                     ↓
 
-                req.user
+              req.user
 
                     ↓
 
         sessions.controller.js
 
-La estrategia `current` obtiene el JWT desde la cookie `currentUser`,
-verifica su firma utilizando `JWT_SECRET` y coloca el payload en `req.user`.
+La ruta `current` utiliza `auth.middleware.js` para obtener el JWT desde la
+cookie `currentUser`, verificarlo y colocar su payload en `req.user`.
 
 ### Hash de contraseñas
 
@@ -398,14 +454,17 @@ Se verificaron mediante Postman los siguientes casos:
 
 ## Endpoints
 
-| Método | Ruta | Descripción |
-|---|---|---|
-| GET | `/api/health` | Verifica que el servidor esté activo. |
-| GET | `/api/events` | Obtiene la lista de eventos. |
-| POST | `/api/sessions/register` | Registra un nuevo usuario. |
-| POST | `/api/sessions/login` | Inicia sesión y genera la cookie de autenticación. |
-| GET | `/api/sessions/current` | Devuelve los datos del usuario autenticado. |
-| POST | `/api/sessions/logout` | Cierra la sesión y elimina la cookie de autenticación. |
+| Método | Endpoint | Descripción | Acceso |
+|---|---|---|---|
+| GET | `/api/health` | Verifica que el servidor esté activo | Público |
+| GET | `/api/events` | Consulta los eventos | Público |
+| POST | `/api/sessions/register` | Registra un nuevo usuario | Público |
+| POST | `/api/sessions/login` | Inicia sesión | Público |
+| GET | `/api/sessions/current` | Obtiene el usuario autenticado | Autenticado |
+| POST | `/api/sessions/logout` | Cierra la sesión | Público |
+| POST | `/api/events` | Crea un evento | `organizer`, `admin` |
+| PUT | `/api/events/:id` | Modifica un evento | `organizer`, `admin` |
+| GET | `/api/admin/users` | Consulta todos los usuarios | `admin` |
 
 ## Autenticación
 
@@ -496,9 +555,9 @@ Endpoint:
 
 GET /api/sessions/current
 
-Esta ruta está protegida por la estrategia `current` de Passport.js.
+Esta ruta está protegida por `auth.middleware.js`.
 
-La estrategia `current` lee el JWT desde la cookie `currentUser`, verifica su validez y coloca la información del usuario en `req.user`.
+El middleware lee el JWT desde la cookie `currentUser`, verifica su validez y coloca la información del usuario en `req.user`.
 
 Request:
 
@@ -588,6 +647,44 @@ Respuesta:
   "payload": []
 }
 ```
+ ## Roles y autorización
+
+La API utiliza tres roles:
+
+- `user` → usuario registrado. Puede consultar eventos publicados.
+- `organizer` → puede consultar eventos, crear eventos y modificar sus propios eventos.
+- `admin` → puede consultar eventos, crear eventos, modificar cualquier evento y consultar todos los usuarios.
+
+### Matriz de permisos
+
+| Acción | user | organizer | admin |
+|---|---:|---:|---:|
+| Consultar eventos publicados | ✅ | ✅ | ✅ |
+| Crear eventos | ❌ | ✅ | ✅ |
+| Modificar eventos propios | ❌ | ✅ | ✅ |
+| Modificar cualquier evento | ❌ | ❌ | ✅ |
+| Ver todos los usuarios | ❌ | ❌ | ✅ |
+
+### Middlewares
+
+La autorización está separada en middlewares reutilizables:
+
+- `auth.middleware.js` → valida el JWT almacenado en la cookie `currentUser`. Si no existe una sesión válida, responde `401`.
+- `authorize.middleware.js` → recibe los roles permitidos y verifica el rol de `req.user`. Si el usuario está autenticado pero no tiene permisos, responde `403`.
+
+### Rutas protegidas
+
+- `GET /api/sessions/current` → requiere autenticación.
+- `POST /api/events` → requiere rol `organizer` o `admin`.
+- `PUT /api/events/:id` → requiere rol `organizer` o `admin` y valida la propiedad del evento.
+- `GET /api/admin/users` → requiere rol `admin`.
+
+### Diferencia entre 401 y 403
+
+- `401 Unauthorized` → el usuario no está autenticado o no posee una sesión válida.
+- `403 Forbidden` → el usuario está autenticado, pero su rol no tiene permiso para realizar la acción.
+
+La propiedad de los eventos también se valida en el backend. Un `organizer` solo puede modificar eventos cuyo campo `organizer` coincida con su propio usuario. Un `admin` puede modificar cualquier evento.
 
 ## Seguridad
 
@@ -599,14 +696,13 @@ No subir al repositorio:
 - Credenciales de MongoDB Atlas
 - Secretos JWT
 
-El archivo `.env` está incluido en `.gitignore.`
+El archivo `.env` está incluido en `.gitignore`.
 
 ## Próximas etapas
 
-- Roles y autorización.
 - CRUD de torneos.
 - Categorías.
 - Inscripciones.
 - Control de cupos.
 - Notificaciones.
-- Integración con proveedores externos de autenticación, como Google o GitHub.
+- Integración con proveedores de autenticación externos.
