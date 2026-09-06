@@ -96,6 +96,8 @@ http://localhost:8080
 ```
 
 ## Estructura
+
+```text
 proyecto-torneos-backend/
 ├── src/
 │   ├── app.js                         → configura la aplicación Express y Passport.
@@ -117,8 +119,8 @@ proyecto-torneos-backend/
 │   │   ├── events.repository.js       → comunica la aplicación con el DAO de eventos.
 │   │   └── users.repository.js        → comunica la aplicación con el DAO de usuarios.
 │   ├── dao/
-│   │   ├── events.dao.js               → realiza operaciones sobre eventos.
-│   │   └── users.dao.js                → realiza operaciones sobre usuarios.
+│   │   ├── events.dao.js              → realiza operaciones sobre eventos.
+│   │   └── users.dao.js               → realiza operaciones sobre usuarios.
 │   ├── models/
 │   │   ├── User.js                    → define el modelo de usuario en MongoDB.
 │   │   └── Event.js                   → define el modelo de eventos.
@@ -133,6 +135,7 @@ proyecto-torneos-backend/
 ├── package.json                       → contiene dependencias y scripts del proyecto.
 ├── package-lock.json                  → registra las versiones exactas de dependencias.
 └── README.md                          → documentación del proyecto.
+```
 
 ## Arquitectura
 
