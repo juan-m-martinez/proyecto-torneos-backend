@@ -2,7 +2,7 @@ import teamsRepository from "../repositories/teams.repository.js";
 import eventsRepository from "../repositories/events.repository.js";
 import usersRepository from "../repositories/users.repository.js";
 import ticketsRepository from "../repositories/tickets.repository.js";
-import { createHash, isValidPassword } from "../utils/hash.js";
+import { createHash } from "../utils/hash.js";
 import { generateReservationCode } from "../utils/reservationCode.js";
 
 
@@ -99,6 +99,10 @@ class TeamsService {
         });
 
         return team;
+    }
+
+    async findById(teamId) {
+        return await teamsRepository.findById(teamId);
     }
 
 }

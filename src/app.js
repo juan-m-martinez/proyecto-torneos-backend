@@ -18,7 +18,9 @@ app.use("/api/events", eventsRouter);
 app.use("/api/sessions", sessionsRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/events/:eid/tickets", ticketsRouter);
+app.use("/api/tickets", ticketsRouter);
 app.use("/api/events/:eid/teams", teamsRouter);
+
 
 app.get("/api/health", (req, res) => {
   res.json({

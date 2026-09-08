@@ -9,8 +9,16 @@ class TeamsRepository {
         return await teamsDAO.findById(id);
     }
 
+    async update(id, teamData) {
+        return await teamsDAO.update(id, teamData);
+    }
+
     async findByEventAndName(eventId, name) {
         return await teamsDAO.findByEventAndName(eventId, name);
+    }
+
+    async countByEvent(eventId) {
+        return await teamsDAO.countByEvent(eventId);
     }
 }
 

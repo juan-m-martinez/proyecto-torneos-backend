@@ -7,7 +7,18 @@ class TicketsDAO {
     }
 
     async findById(id) {
-        return await Ticket.findById(id);
+        return await Ticket.findOne({ _id: id });
+    }
+
+    async update(id, ticketData) {
+        return await Ticket.findByIdAndUpdate(
+            id,
+            ticketData,
+            {
+                new: true,
+                runValidators: true,
+            }
+        );
     }
 
     async findActiveByUserAndEvent(userId, eventId) {
@@ -29,6 +40,14 @@ class TicketsDAO {
         return await Ticket.countDocuments({
             team: teamId,
             status: { $ne: "cancelled" },
+        });
+    }
+
+    async findActiveByTeam(teamId, excludeTicketId) {
+        return await Ticket.findOne({
+            team: teamId,
+            status: { $ne: "cancelled" },
+            _id: { $ne: excludeTicketId },
         });
     }
 

@@ -9,6 +9,17 @@ class TeamsDAO {
         return await Team.findById(id);
     }
 
+    async update(id, teamData) {
+        return await Team.findByIdAndUpdate(
+            id,
+            teamData,
+            {
+                new: true,
+                runValidators: true,
+            }
+        );
+    }
+
     async findByEventAndName(eventId, name) {
         return await Team.findOne({
             event: eventId,

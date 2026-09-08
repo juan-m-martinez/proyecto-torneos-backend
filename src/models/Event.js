@@ -37,12 +37,6 @@ const eventSchema = new mongoose.Schema(
       min: 1,
     },
 
-    capacity: {
-      type: Number,
-      required: true,
-      min: 1,
-    }, // capacity → cuántos jugadores entran al torneo?
-
     playersPerTeam: {
       type: Number,
       required: true,

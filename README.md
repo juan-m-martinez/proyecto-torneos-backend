@@ -1,27 +1,33 @@
 # Plataforma de Torneos Deportivos
 
-## Pre-entrega 6 — Entidad events y lógica de negocio
+## Pre-entrega 7 — Equipos, tickets e inscripciones
 
-Esta entrega incorpora la entidad `Event` y completa la gestión de eventos
-deportivos mediante operaciones de creación, consulta, modificación y
-actualización de estado.
+Esta entrega incorpora las entidades `Team` y `Ticket`, y completa el flujo
+de inscripción a los eventos: creación de equipos, inscripción de jugadores,
+generación automática de tickets, cancelación de inscripciones y
+transferencia automática de la capitanía de un equipo.
 
 La lógica de negocio se concentra en la capa de Services, mientras que el
 acceso a MongoDB se mantiene separado mediante Repository y DAO.
 
-La autenticación mediante Passport.js, JWT y cookies, junto con el sistema
-de roles y autorización implementado en las entregas anteriores, se mantiene
-como base del sistema.
+La entidad `Event` y su gestión (creación, consulta, modificación y
+actualización de estado), junto con la autenticación mediante Passport.js,
+JWT y cookies y el sistema de roles y autorización implementado en las
+entregas anteriores, se mantienen como base del sistema.
+
+El desarrollo de esta entrega se encuentra en la rama `prueba-pre7`.
 
 ## Temática
 
-La plataforma está orientada a la gestión de **torneos y eventos deportivos**.
+La plataforma está orientada a la gestión de **torneos y eventos deportivos**,
+incluyendo la conformación de equipos y la emisión de tickets para los
+jugadores inscriptos.
 
 Roles:
 
 - `admin`: administración general.
-- `organizer`: creación y administración de sus propios eventos.
-- `user`: consulta de eventos.
+- `organizer`: creación y administración de sus propios eventos y equipos.
+- `user`: consulta de eventos, inscripción en equipos y gestión de sus propios tickets.
 
 ## Tecnologías
 
@@ -38,6 +44,7 @@ Roles:
 - Passport.js → centraliza y administra las estrategias de autenticación.
 - passport-local → estrategia de Passport utilizada para `register` y `login`.
 - passport-jwt → dependencia disponible para estrategias JWT de Passport y futuras extensiones de autenticación.
+- Nodemailer → utilizado para el envío de correos electrónicos desde el backend.
 - Módulos ESM → sistema de módulos utilizado para organizar imports y exports.
 - Postman → herramienta utilizada para probar los endpoints de la API.
 - Git y GitHub → control de versiones y almacenamiento remoto del proyecto.
@@ -93,6 +100,12 @@ npm run dev
 http://localhost:8080
 ```
 
+**Seed de usuarios de prueba:**
+
+```bash
+npm run seed:users
+```
+
 ## Estructura
 
 ```text
@@ -105,29 +118,43 @@ proyecto-torneos-backend/
 │   │   └── passport.config.js         → centraliza las estrategias de Passport.
 │   ├── routes/
 │   │   ├── admin.router.js            → define las rutas exclusivas de administración.
-│   │   ├── events.router.js           → define las rutas de eventos.
+│   │   ├── events.router.js           → define las rutas de eventos, equipos y tickets anidados.
+│   │   ├── tickets.router.js          → define las rutas de tickets propias del usuario.
 │   │   └── sessions.router.js         → define las rutas de autenticación.
 │   ├── controllers/
 │   │   ├── events.controller.js       → maneja las solicitudes y respuestas de eventos.
+│   │   ├── teams.controller.js        → maneja las solicitudes y respuestas de equipos.
+│   │   ├── tickets.controller.js      → maneja las solicitudes y respuestas de tickets.
 │   │   ├── sessions.controller.js     → maneja las respuestas de autenticación.
 │   │   └── users.controller.js        → maneja la consulta de usuarios.
 │   ├── services/
-│   │   └── events.service.js          → contiene la lógica de negocio de eventos.
+│   │   ├── events.service.js          → contiene la lógica de negocio de eventos.
+│   │   ├── teams.service.js           → contiene la lógica de negocio de equipos.
+│   │   └── tickets.service.js         → contiene la lógica de negocio de inscripciones y tickets.
 │   ├── repositories/
 │   │   ├── events.repository.js       → comunica la aplicación con el DAO de eventos.
+│   │   ├── teams.repository.js        → comunica la aplicación con el DAO de equipos.
+│   │   ├── tickets.repository.js      → comunica la aplicación con el DAO de tickets.
 │   │   └── users.repository.js        → comunica la aplicación con el DAO de usuarios.
 │   ├── dao/
 │   │   ├── events.dao.js              → realiza operaciones sobre eventos.
+│   │   ├── teams.dao.js               → realiza operaciones sobre equipos.
+│   │   ├── tickets.dao.js             → realiza operaciones sobre tickets.
 │   │   └── users.dao.js               → realiza operaciones sobre usuarios.
 │   ├── models/
 │   │   ├── User.js                    → define el modelo de usuario en MongoDB.
-│   │   └── Event.js                   → define el modelo de eventos.
+│   │   ├── Event.js                   → define el modelo de eventos.
+│   │   ├── Team.js                    → define el modelo de equipos.
+│   │   └── Ticket.js                  → define el modelo de tickets.
 │   ├── middlewares/
 │   │   ├── auth.middleware.js         → valida la sesión mediante JWT.
 │   │   └── authorize.middleware.js    → verifica los permisos según el rol.
+│   ├── seed/
+│   │   └── users.seed.js              → crea usuarios de prueba con los distintos roles.
 │   └── utils/
 │       ├── hash.js                    → genera y verifica hashes con bcrypt.
-│       └── jwt.js                     → genera y verifica tokens JWT.
+│       ├── jwt.js                     → genera y verifica tokens JWT.
+│       └── mailer.js                  → configura el envío de correos mediante Nodemailer.
 ├── .env.example                       → muestra las variables de entorno necesarias.
 ├── .gitignore                         → indica qué archivos no debe subir Git.
 ├── package.json                       → contiene dependencias y scripts del proyecto.
@@ -433,7 +460,8 @@ La entidad `Event` representa un evento deportivo administrado por un `organizer
 | `category` | String | Categoría del evento |
 | `date` | Date | Fecha del evento |
 | `location` | String | Lugar donde se realiza |
-| `capacity` | Number | Capacidad máxima |
+| `teamsCapacity` | Number | Cantidad máxima de equipos admitidos |
+| `playersPerTeam` | Number | Cantidad máxima de jugadores por equipo |
 | `price` | Number | Precio de inscripción |
 | `status` | String | Estado actual del evento |
 | `organizer` | ObjectId | Usuario organizador |
@@ -482,7 +510,8 @@ Body:
   "category": "futbol",
   "date": "2027-08-20",
   "location": "Club Central",
-  "capacity": 50,
+  "teamsCapacity": 2,
+  "playersPerTeam": 3,
   "price": 100
 }
 ```
@@ -523,7 +552,7 @@ Código HTTP: `400 Bad Request`
 
 **Capacidad**
 
-La capacidad debe ser mayor a 0. Si se envía `{ "capacity": 0 }`:
+`teamsCapacity` y `playersPerTeam` deben ser mayores a 0. Si se envía `{ "teamsCapacity": 0 }` o `{ "playersPerTeam": 0 }`:
 
 Código HTTP: `400 Bad Request`
 
@@ -533,6 +562,8 @@ Código HTTP: `400 Bad Request`
   "message": "La capacidad debe ser mayor a 0"
 }
 ```
+
+`teamsCapacity` define la cantidad máxima de equipos que pueden crearse en el evento, y `playersPerTeam` define la cantidad máxima de jugadores que puede tener cada equipo. Ambos valores se detallan más adelante en la sección [Capacidad de los eventos](#capacidad-de-los-eventos).
 
 **Precio**
 
@@ -767,13 +798,207 @@ La cancelación se realiza modificando el estado del evento:
 
 No se realiza eliminación física del documento. El evento permanece almacenado en MongoDB con `status = cancelled`, lo que permite conservar la información histórica del evento.
 
+## Entidad Team
+
+La entidad `Team` representa un equipo inscripto en un evento.
+
+### Campos
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `name` | String | Nombre del equipo |
+| `event` | ObjectId | Evento al que pertenece el equipo |
+| `captain` | ObjectId | Usuario que oficia de capitán |
+| `teamPassword` | String | Contraseña del equipo (hasheada con bcrypt) |
+
+Los nombres de equipo son únicos dentro de cada evento, aunque pueden repetirse entre eventos distintos.
+
+## Equipos
+
+### Crear equipo
+
+Endpoint:
+
+```http
+POST /api/events/:eid/teams
+```
+
+Acceso: `organizer`, `admin`
+
+Body:
+
+```json
+{
+  "name": "Real Vacilada",
+  "teamPassword": "123456",
+  "captainId": "ID_DEL_USUARIO"
+}
+```
+
+El `organizer` (dueño del evento) o el `admin` crean el equipo y definen quién será el capitán mediante `captainId`. Al crear el equipo, el capitán recibe automáticamente su ticket de inscripción.
+
+La `teamPassword` se almacena utilizando bcrypt, de la misma forma que las contraseñas de usuario.
+
+### Consultar equipo
+
+Endpoint:
+
+```http
+GET /api/events/:eid/teams/:tid
+```
+
+Permite consultar los datos del equipo, incluyendo quién es actualmente el capitán.
+
+## Entidad Ticket
+
+La entidad `Ticket` representa la inscripción de un usuario en un equipo dentro de un evento. Cada usuario ocupa exactamente un cupo: el campo `quantity` se establece automáticamente en `1` y el usuario no puede elegir una cantidad arbitraria.
+
+### Campos
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `user` | ObjectId | Usuario inscripto |
+| `event` | ObjectId | Evento al que pertenece la inscripción |
+| `team` | ObjectId | Equipo en el que se inscribió el usuario |
+| `status` | String | Estado del ticket |
+| `quantity` | Number | Cantidad de cupos ocupados (siempre `1`) |
+| `reservationCode` | String | Código de reserva generado automáticamente |
+| `createdAt` | Date | Fecha de creación del ticket |
+| `cancelledAt` | Date | Fecha de cancelación del ticket (si corresponde) |
+
+### Estados disponibles
+
+El campo `status` utiliza los siguientes valores:
+
+- `confirmed`
+- `pending`
+- `cancelled`
+
+## Tickets
+
+### Inscribirse en un equipo
+
+Endpoint:
+
+```http
+POST /api/events/:eid/tickets
+```
+
+Body:
+
+```json
+{
+  "teamId": "ID_DEL_EQUIPO",
+  "teamPassword": "123456"
+}
+```
+
+Para poder inscribirse:
+
+- el evento debe estar `published`;
+- el equipo debe pertenecer al evento indicado;
+- la `teamPassword` enviada debe ser correcta;
+- el equipo no debe haber alcanzado `playersPerTeam`;
+- el usuario no debe estar previamente inscripto en el evento.
+
+Cada inscripción exitosa genera un código de reserva, por ejemplo:
+
+```text
+TKT-BB63XS
+```
+
+### Consultar mis tickets
+
+Endpoint:
+
+```http
+GET /api/tickets/my-tickets
+```
+
+Devuelve los tickets pertenecientes al usuario autenticado.
+
+### Consultar tickets de un evento
+
+Endpoint:
+
+```http
+GET /api/events/:eid/tickets
+```
+
+Acceso: `organizer` (propietario del evento), `admin`
+
+Incluye también los tickets cancelados, para conservar el historial de inscripciones.
+
+### Cancelar ticket
+
+Endpoint:
+
+```http
+PATCH /api/tickets/:tid/cancel
+```
+
+Puede cancelar el ticket: el propietario del ticket o un `admin`.
+
+Al cancelar:
+
+- `status` → `cancelled`
+- `cancelledAt` → fecha de cancelación
+
+No se elimina físicamente el ticket.
+
+## Capitanía de equipos
+
+Cuando el capitán cancela su propio ticket:
+
+1. Se busca otro jugador activo del mismo equipo.
+2. Si existe otro jugador activo, este pasa a ser automáticamente el nuevo capitán.
+3. Si no existen jugadores activos, el equipo queda sin capitán, pero **no se elimina**.
+
+```text
+Capitán original
+      ↓
+Cancela su ticket
+      ↓
+Ticket = cancelled
+      ↓
+Se busca jugador activo
+      ↓
+Jugador 3
+      ↓
+Jugador 3 pasa a ser capitán
+```
+
+Esto permite conservar el historial del equipo aun cuando cambie su capitán.
+
+## Capacidad de los eventos
+
+La capacidad de un evento se maneja mediante dos campos:
+
+- `teamsCapacity`
+- `playersPerTeam`
+
+Por ejemplo:
+
+```text
+teamsCapacity = 2
+playersPerTeam = 3
+```
+
+Significa:
+
+- Máximo de equipos: 2
+- Máximo de jugadores por equipo: 3
+- Máximo total de jugadores: 2 × 3 = 6
+
+La creación de equipos controla `teamsCapacity`, mientras que la inscripción de jugadores (generación de tickets) controla `playersPerTeam`.
+
 ## Roles y autorización
 
 La API utiliza tres roles:
 
-- `user` → usuario registrado. Puede consultar eventos.
-- `organizer` → puede consultar eventos, crear eventos, modificar sus propios eventos y actualizar su estado.
-- `admin` → puede consultar eventos, crear eventos, modificar cualquier evento, actualizar el estado de cualquier evento y consultar todos los usuarios.
+- `user` → usuario registrado. Puede consultar eventos, inscribirse en equipos y gestionar sus propios tickets.
+- `organizer` → puede consultar eventos, crear eventos, modificar sus propios eventos, actualizar su estado y crear equipos dentro de sus propios eventos.
+- `admin` → puede consultar eventos, crear eventos, modificar cualquier evento, actualizar el estado de cualquier evento, crear equipos en cualquier evento y consultar todos los usuarios.
 
 ### Matriz de permisos
 
@@ -785,6 +1010,10 @@ La API utiliza tres roles:
 | Modificar cualquier evento | ❌ | ❌ | ✅ |
 | Actualizar estado de eventos propios | ❌ | ✅ | ✅ |
 | Actualizar estado de cualquier evento | ❌ | ❌ | ✅ |
+| Crear equipos de sus eventos | ❌ | ✅ | ✅ |
+| Inscribirse en equipos | ✅ | ✅ | ✅ |
+| Cancelar ticket propio | ✅ | ✅ | ✅ |
+| Consultar tickets de un evento propio | ❌ | ✅ | ✅ |
 | Ver todos los usuarios | ❌ | ❌ | ✅ |
 
 La consulta de eventos puede utilizar el filtro `GET /api/events?status=published` para consultar específicamente eventos publicados.
@@ -828,13 +1057,19 @@ La propiedad de los eventos también se valida en el backend. Un `organizer` sol
 | POST | `/api/events` | Crea un evento | `organizer`, `admin` |
 | PUT | `/api/events/:id` | Modifica un evento | `organizer`, `admin` + propietario |
 | PATCH | `/api/events/:id/status` | Actualiza el estado de un evento | `organizer`, `admin` + propietario |
+| GET | `/api/events/:eid/teams/:tid` | Consulta un equipo de un evento | Autenticado |
+| GET | `/api/events/:eid/teams/:tid` | Consulta un equipo de un evento | Público |
+| POST | `/api/events/:eid/tickets` | Inscribe al usuario autenticado en un equipo | Autenticado |
+| GET | `/api/tickets/my-tickets` | Consulta los tickets del usuario autenticado | Autenticado |
+| GET | `/api/events/:eid/tickets` | Consulta los tickets de un evento | `organizer` (propietario), `admin` |
+| PATCH | `/api/tickets/:tid/cancel` | Cancela un ticket | Propietario del ticket, `admin` |
 | POST | `/api/sessions/register` | Registra un nuevo usuario | Público |
 | POST | `/api/sessions/login` | Inicia sesión | Público |
 | GET | `/api/sessions/current` | Obtiene el usuario autenticado | Autenticado |
 | POST | `/api/sessions/logout` | Cierra la sesión | Público |
 | GET | `/api/admin/users` | Consulta todos los usuarios | `admin` |
 
-No se utiliza eliminación física de eventos.
+No se utiliza eliminación física de eventos ni de tickets.
 
 ## Otras rutas
 
@@ -852,6 +1087,16 @@ Respuesta:
   "message": "Servidor activo"
 }
 ```
+
+## Seed de usuarios
+
+Para facilitar las pruebas se incluye un script de seed:
+
+```bash
+npm run seed:users
+```
+
+Crea usuarios de prueba con los distintos roles disponibles (`user`, `organizer`, `admin`). Las contraseñas de estos usuarios se almacenan utilizando bcrypt, igual que en el registro normal.
 
 ## Pruebas realizadas
 
@@ -885,8 +1130,8 @@ Las funcionalidades principales fueron verificadas mediante Postman.
 **Reglas de negocio de Events**
 
 - Crear evento con fecha pasada → 400.
-- Crear evento con capacidad 0 → 400.
-- Actualizar evento con capacidad 0 → 400.
+- Crear evento con `teamsCapacity` o `playersPerTeam` en 0 → 400.
+- Actualizar evento con capacidad en 0 → 400.
 - Actualizar evento con precio negativo → 400.
 - Publicar evento → 200.
 - Intentar modificar evento cancelado → 400.
@@ -895,6 +1140,35 @@ Las funcionalidades principales fueron verificadas mediante Postman.
 - Intentar publicar un evento finalizado → 400.
 - Consultar evento existente → 200.
 - Consultar evento inexistente → 404.
+
+**Equipos**
+
+- Creación de equipos.
+- Asignación automática de capitán al crear el equipo.
+- Generación automática del ticket del capitán.
+- Contraseña de equipo almacenada mediante bcrypt.
+- Nombres de equipo únicos dentro de un mismo evento.
+
+**Tickets e inscripciones**
+
+- Inscripción de jugadores en un equipo.
+- Validación de la contraseña del equipo.
+- Control de jugadores por equipo (`playersPerTeam`).
+- Prevención de inscripción duplicada del mismo usuario en un evento.
+- Consulta de tickets propios (`my-tickets`).
+- Consulta de tickets por evento, incluyendo cancelados.
+- Cancelación de tickets.
+- Conservación del historial de tickets cancelados.
+- Liberación de cupos después de una cancelación.
+
+**Capitanía de equipos**
+
+- Transferencia automática de capitanía cuando el capitán cancela su ticket.
+- Equipo sin jugadores activos: el equipo se conserva sin capitán.
+
+**Autenticación y autorización (generales)**
+
+- Diferenciación entre errores 401 y 403.
 
 **Listado de eventos**
 
@@ -940,13 +1214,14 @@ Las entregas se organizan mediante commits correspondientes a cada etapa del des
 
 ## Próximas etapas
 
-Las siguientes funcionalidades pueden incorporarse sobre la base de la entidad `Event`:
+Las siguientes funcionalidades pueden incorporarse sobre la base de las entidades `Event`, `Team` y `Ticket`:
 
-- Inscripciones a eventos.
-- Control de cupos.
-- Gestión de participantes.
-- Tickets.
-- Notificaciones.
-- Categorías.
+- Notificaciones por email a jugadores y organizadores (aprovechando Nodemailer).
+- Gestión de participantes más avanzada (listas de espera, reemplazos).
+- Categorías de torneos.
 - Integración con proveedores de autenticación externos.
 - Mejoras y extensiones de la gestión de torneos.
+
+## Estado del proyecto
+
+Proyecto desarrollado como parte de Backend II. La implementación actual de esta entrega se encuentra en la rama `prueba-pre7`.

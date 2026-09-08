@@ -10,6 +10,10 @@ class TicketsRepository {
         return await ticketsDAO.findById(id);
     }
 
+    async update(id, ticketData) {
+        return await ticketsDAO.update(id, ticketData);
+    }
+
     async findActiveByUserAndEvent(userId, eventId) {
         return await ticketsDAO.findActiveByUserAndEvent(userId, eventId);
     }
@@ -20,6 +24,10 @@ class TicketsRepository {
 
     async countActiveByTeam(teamId) {
         return await ticketsDAO.countActiveByTeam(teamId);
+    }
+
+    async findActiveByTeam(teamId, excludeTicketId) {
+        return await ticketsDAO.findActiveByTeam(teamId, excludeTicketId);
     }
 
     async findByUser(userId) {
