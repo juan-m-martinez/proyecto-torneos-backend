@@ -2,7 +2,7 @@ import eventsRepository from "../repositories/events.repository.js";
 
 class EventsService {
   async create(eventData) {
-    const { date, capacity, price } = eventData;
+    const { date, teamsCapacity, playersPerTeam, price } = eventData;
 
     if (new Date(date) <= new Date()) {
       const error = new Error("La fecha del evento debe ser futura");
@@ -10,8 +10,18 @@ class EventsService {
       throw error;
     }
 
-    if (capacity <= 0) {
-      const error = new Error("La capacidad debe ser mayor a 0");
+    if (teamsCapacity <= 0) {
+      const error = new Error(
+        "La cantidad de equipos debe ser mayor a 0"
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (playersPerTeam <= 0) {
+      const error = new Error(
+        "La cantidad de jugadores por equipo debe ser mayor a 0"
+      );
       error.statusCode = 400;
       throw error;
     }
@@ -53,8 +63,24 @@ class EventsService {
       throw error;
     }
 
-    if (eventData.capacity !== undefined && eventData.capacity <= 0) {
-      const error = new Error("La capacidad debe ser mayor a 0");
+    if (
+      eventData.teamsCapacity !== undefined &&
+      eventData.teamsCapacity <= 0
+    ) {
+      const error = new Error(
+        "La cantidad de equipos debe ser mayor a 0"
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (
+      eventData.playersPerTeam !== undefined &&
+      eventData.playersPerTeam <= 0
+    ) {
+      const error = new Error(
+        "La cantidad de jugadores por equipo debe ser mayor a 0"
+      );
       error.statusCode = 400;
       throw error;
     }

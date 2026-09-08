@@ -77,7 +77,16 @@ export const getEventById = async (req, res) => {
 
 export const createEvent = async (req, res) => {
   try {
-    const { title, description, category, date, location, capacity, price, } = req.body;
+    const {
+      title,
+      description,
+      category,
+      date,
+      location,
+      teamsCapacity,
+      playersPerTeam,
+      price,
+    } = req.body;
 
     const event = await eventsService.create({
       title,
@@ -85,7 +94,8 @@ export const createEvent = async (req, res) => {
       category,
       date,
       location,
-      capacity,
+      teamsCapacity,
+      playersPerTeam,
       price,
       organizer: req.user.id,
     });
@@ -116,7 +126,8 @@ export const updateEvent = async (req, res) => {
       category,
       date,
       location,
-      capacity,
+      teamsCapacity,
+      playersPerTeam,
       price,
     } = req.body;
 
@@ -128,7 +139,8 @@ export const updateEvent = async (req, res) => {
         category,
         date,
         location,
-        capacity,
+        teamsCapacity,
+        playersPerTeam,
         price,
       },
       req.user

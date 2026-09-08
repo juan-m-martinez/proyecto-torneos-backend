@@ -6,4 +6,4 @@ export const createHash = async (password) => {
 
 export const isValidPassword = async (password, hashedPassword) => {
   return await bcrypt.compare(password, hashedPassword);
-}; // compara bvrypt de usuario
+}; // Compara la contraseña con su hash

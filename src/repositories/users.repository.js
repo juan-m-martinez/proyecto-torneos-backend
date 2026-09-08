@@ -12,6 +12,10 @@ class UsersRepository {
   async findAll() {
     return await usersDAO.findAll();
   }
+
+  async findById(id) {
+    return await usersDAO.findById(id);
+  }
 }
 
 export default new UsersRepository();
