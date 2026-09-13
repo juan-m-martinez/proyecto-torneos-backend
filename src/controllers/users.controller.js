@@ -1,4 +1,5 @@
 import usersRepository from "../repositories/users.repository.js";
+import { userDTO } from "../dto/user.dto.js";
 
 export const getUsers = async (req, res) => {
     try {
@@ -6,7 +7,7 @@ export const getUsers = async (req, res) => {
 
         return res.status(200).json({
             status: "success",
-            payload: users,
+            payload: users.map(userDTO),
         });
     } catch (error) {
         return res.status(500).json({

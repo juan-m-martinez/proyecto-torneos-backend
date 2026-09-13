@@ -1,6 +1,9 @@
 import ticketsRepository from "../repositories/tickets.repository.js";
 import eventsRepository from "../repositories/events.repository.js";
 import teamsRepository from "../repositories/teams.repository.js";
+import usersRepository from "../repositories/users.repository.js";
+
+import { sendEmail } from "../utils/mailer.js";
 import { isValidPassword } from "../utils/hash.js";
 import { generateReservationCode } from "../utils/reservationCode.js";
 
@@ -82,6 +85,20 @@ class TicketsService {
             reservationCode,
         });
 
+        const user = await usersRepository.findById(userId);
+
+        if (user && process.env.SMTP_USER && process.env.SMTP_PASS) {
+            await sendEmail({
+                to: user.email,
+                subject: "Inscripción confirmada",
+                text: `Tu inscripción fue confirmada correctamente.
+
+                Evento: ${event.title}
+                Equipo: ${team.name}
+                Código de reserva: ${reservationCode}`,
+            });
+        }
+
         return ticket;
     }
 
@@ -161,10 +178,24 @@ class TicketsService {
             }
         }
 
-        return await ticketsRepository.update(ticketId, {
+        const cancelledTicket = await ticketsRepository.update(ticketId, {
             status: "cancelled",
             cancelledAt: new Date(),
         });
+
+        const userToNotify = await usersRepository.findById(ticket.user);
+
+        if (userToNotify && process.env.SMTP_USER && process.env.SMTP_PASS) {
+            await sendEmail({
+                to: userToNotify.email,
+                subject: "Inscripción cancelada",
+                text: `Tu inscripción fue cancelada correctamente.
+                
+                Código de reserva: ${ticket.reservationCode}`,
+            });
+        }
+
+        return cancelledTicket;
     }
 }
 

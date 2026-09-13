@@ -1,4 +1,5 @@
 import teamsService from "../services/teams.service.js";
+import { teamDTO } from "../dto/team.dto.js";
 
 export const createTeam = async (req, res) => {
     try {
@@ -16,7 +17,7 @@ export const createTeam = async (req, res) => {
 
         return res.status(201).json({
             status: "success",
-            data: team,
+            data: teamDTO(team)
         });
     } catch (error) {
         return res.status(error.statusCode || 500).json({
@@ -41,7 +42,7 @@ export const getTeam = async (req, res) => {
 
         return res.status(200).json({
             status: "success",
-            data: team,
+            data: teamDTO(team),
         });
     } catch (error) {
         return res.status(error.statusCode || 500).json({

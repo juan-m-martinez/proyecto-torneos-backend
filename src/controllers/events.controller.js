@@ -1,4 +1,5 @@
 import eventsService from "../services/events.service.js";
+import { eventDTO } from "../dto/event.dto.js";
 
 export const getEvents = async (req, res) => {
   try {
@@ -39,7 +40,11 @@ export const getEvents = async (req, res) => {
 
     return res.status(200).json({
       status: "success",
-      ...result,
+      data: result.data.map(eventDTO),
+      page: result.page,
+      limit: result.limit,
+      total: result.total,
+      totalPages: result.totalPages,
     });
   } catch (error) {
     return res.status(error.statusCode || 500).json({
@@ -65,7 +70,7 @@ export const getEventById = async (req, res) => {
 
     return res.status(200).json({
       status: "success",
-      payload: event,
+      payload: eventDTO(event),
     });
   } catch (error) {
     return res.status(500).json({
@@ -101,11 +106,7 @@ export const createEvent = async (req, res) => {
     });
     return res.status(201).json({
       status: "success",
-      payload: {
-        id: event._id.toString(),
-        title: event.title,
-        organizer: event.organizer.toString(),
-      },
+      payload: eventDTO(event),
     });
   } catch (error) {
     console.error("Error al crear evento:", error);
@@ -148,11 +149,7 @@ export const updateEvent = async (req, res) => {
 
     return res.status(200).json({
       status: "success",
-      payload: {
-        id: updatedEvent._id.toString(),
-        title: updatedEvent.title,
-        organizer: updatedEvent.organizer.toString(),
-      },
+      payload: eventDTO(updatedEvent),
     });
   } catch (error) {
     return res.status(error.statusCode || 500).json({
@@ -175,12 +172,7 @@ export const updateEventStatus = async (req, res) => {
 
     return res.status(200).json({
       status: "success",
-      payload: {
-        id: updatedEvent._id.toString(),
-        title: updatedEvent.title,
-        status: updatedEvent.status,
-        organizer: updatedEvent.organizer.toString(),
-      },
+      payload: eventDTO(updatedEvent),
     });
   } catch (error) {
     return res.status(error.statusCode || 500).json({

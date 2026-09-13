@@ -54,12 +54,18 @@ class TicketsDAO {
     async findByUser(userId) {
         return await Ticket.find({
             user: userId,
+        }).populate({
+            path: "user",
+            select: "-password",
         });
     }
 
     async findByEvent(eventId) {
         return await Ticket.find({
             event: eventId,
+        }).populate({
+            path: "user",
+            select: "-password",
         });
     }
 }
