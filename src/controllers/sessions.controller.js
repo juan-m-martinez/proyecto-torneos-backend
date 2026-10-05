@@ -1,38 +1,29 @@
 import { generateToken } from "../utils/jwt.js";
 import { userDTO } from "../dto/user.dto.js";
+import usersService from "../services/users.service.js";
 
-
-export const register = async (req, res) => {
+export const register = async (req, res, next) => {
   try {
-    const user = req.user;
-
     return res.status(201).json({
       status: "success",
-      payload: userDTO(user),
+      payload: userDTO(req.user),
     });
   } catch (error) {
-    return res.status(error.statusCode || 500).json({
-      status: "error",
-      message: error.message || "Error interno del servidor",
-    });
+    return next(error);
   }
 };
 
-export const login = async (req, res) => {
+export const login = async (req, res, next) => {
   try {
     const { id, email, role } = req.user;
 
-    const token = generateToken({
-      id,
-      email,
-      role,
-    });
+    const token = generateToken({ id, email, role });
 
-    res.cookie("currentUser", token, { // → nombre de la cookie.
-      httpOnly: true, // → JavaScript del navegador no puede leerla.
-      sameSite: "lax", // → agrega protección frente a ciertos ataques entre sitios.
-      maxAge: 3600000, // → duracion 1 hora.
-      secure: process.env.NODE_ENV === "production", // → HTTPS.
+    res.cookie("currentUser", token, {
+      httpOnly: true,
+      sameSite: "lax",
+      maxAge: 3600000,
+      secure: process.env.NODE_ENV === "production",
     });
 
     return res.status(200).json({
@@ -40,18 +31,28 @@ export const login = async (req, res) => {
       message: "Login correcto",
     });
   } catch (error) {
-    return res.status(error.statusCode || 500).json({
-      status: "error",
-      message: error.message || "Error interno del servidor",
-    });
+    return next(error);
   }
 };
 
-export const current = async (req, res) => {
-  return res.status(200).json({
-    status: "success",
-    payload: userDTO(req.user),
-  });
+export const current = async (req, res, next) => {
+  try {
+    const user = await usersService.getById(req.user.id);
+
+    if (!user) {
+      return res.status(401).json({
+        status: "error",
+        message: "No autenticado",
+      });
+    }
+
+    return res.status(200).json({
+      status: "success",
+      payload: userDTO(user),
+    });
+  } catch (error) {
+    return next(error);
+  }
 };
 
 export const logout = async (req, res) => {

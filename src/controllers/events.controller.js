@@ -1,7 +1,7 @@
 import eventsService from "../services/events.service.js";
 import { eventDTO } from "../dto/event.dto.js";
 
-export const getEvents = async (req, res) => {
+export const getEvents = async (req, res, next) => {
   try {
     const {
       status,
@@ -47,15 +47,11 @@ export const getEvents = async (req, res) => {
       totalPages: result.totalPages,
     });
   } catch (error) {
-    return res.status(error.statusCode || 500).json({
-      status: "error",
-      message: error.message || "Error interno del servidor",
-    });
+    return next(error);
   }
 };
 
-
-export const getEventById = async (req, res) => {
+export const getEventById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -73,14 +69,11 @@ export const getEventById = async (req, res) => {
       payload: eventDTO(event),
     });
   } catch (error) {
-    return res.status(500).json({
-      status: "error",
-      message: error.message || "Error interno del servidor",
-    });
+    return next(error);
   }
 };
 
-export const createEvent = async (req, res) => {
+export const createEvent = async (req, res, next) => {
   try {
     const {
       title,
@@ -88,6 +81,7 @@ export const createEvent = async (req, res) => {
       category,
       date,
       location,
+      capacity,
       teamsCapacity,
       playersPerTeam,
       price,
@@ -99,25 +93,23 @@ export const createEvent = async (req, res) => {
       category,
       date,
       location,
+      capacity,
       teamsCapacity,
       playersPerTeam,
       price,
       organizer: req.user.id,
     });
+
     return res.status(201).json({
       status: "success",
       payload: eventDTO(event),
     });
   } catch (error) {
-    console.error("Error al crear evento:", error);
-    return res.status(error.statusCode || 500).json({
-      status: "error",
-      message: error.message || "Error interno del servidor",
-    });
+    return next(error);
   }
 };
 
-export const updateEvent = async (req, res) => {
+export const updateEvent = async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -127,6 +119,7 @@ export const updateEvent = async (req, res) => {
       category,
       date,
       location,
+      capacity,
       teamsCapacity,
       playersPerTeam,
       price,
@@ -140,11 +133,12 @@ export const updateEvent = async (req, res) => {
         category,
         date,
         location,
+        capacity,
         teamsCapacity,
         playersPerTeam,
         price,
       },
-      req.user
+      req.user,
     );
 
     return res.status(200).json({
@@ -152,32 +146,22 @@ export const updateEvent = async (req, res) => {
       payload: eventDTO(updatedEvent),
     });
   } catch (error) {
-    return res.status(error.statusCode || 500).json({
-      status: "error",
-      message: error.message || "Error interno del servidor",
-    });
+    return next(error);
   }
 };
 
-export const updateEventStatus = async (req, res) => {
+export const updateEventStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
 
-    const updatedEvent = await eventsService.updateStatus(
-      id,
-      status,
-      req.user
-    );
+    const updatedEvent = await eventsService.updateStatus(id, status, req.user);
 
     return res.status(200).json({
       status: "success",
       payload: eventDTO(updatedEvent),
     });
   } catch (error) {
-    return res.status(error.statusCode || 500).json({
-      status: "error",
-      message: error.message || "Error interno del servidor",
-    });
+    return next(error);
   }
 };

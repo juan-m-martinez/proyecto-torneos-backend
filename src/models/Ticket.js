@@ -1,50 +1,52 @@
 import mongoose from "mongoose";
 
-const ticketSchema = new mongoose.Schema(
-  {
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-
-    event: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Event",
-      required: true,
-    },
-
-    team: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Team",
-      required: true,
-    },
-
-    status: {
-      type: String,
-      enum: ["confirmed", "pending", "cancelled"],
-      default: "confirmed",
-    },
-
-    quantity: {
-      type: Number,
-      required: true,
-      default: 1,
-      min: 1,
-    },
-
-    reservationCode: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-
-    cancelledAt: {
-      type: Date,
-      default: null,
+const ticketSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+  event: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Event",
+    required: true,
+  },
+  status: {
+    type: String,
+    enum: ["active", "cancelled"],
+    default: "active",
+  },
+  quantity: {
+    type: Number,
+    required: true,
+    min: 1,
+    validate: {
+      validator: Number.isInteger,
+      message: "La cantidad debe ser un número entero",
     },
   },
-  { timestamps: true }
+  reservationCode: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+  cancelledAt: {
+    type: Date,
+    default: null,
+  },
+});
+
+ticketSchema.index(
+  { user: 1, event: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: "active" },
+  },
 );
 
 const Ticket = mongoose.model("Ticket", ticketSchema);

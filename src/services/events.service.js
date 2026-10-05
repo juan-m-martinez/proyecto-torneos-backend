@@ -2,25 +2,33 @@ import eventsRepository from "../repositories/events.repository.js";
 
 class EventsService {
   async create(eventData) {
-    const { date, teamsCapacity, playersPerTeam, price } = eventData;
+    const { date, capacity, teamsCapacity, playersPerTeam, price } = eventData;
 
-    if (new Date(date) <= new Date()) {
+    const eventDate = new Date(date);
+
+    if (Number.isNaN(eventDate.getTime()) || eventDate <= new Date()) {
       const error = new Error("La fecha del evento debe ser futura");
       error.statusCode = 400;
       throw error;
     }
 
-    if (teamsCapacity <= 0) {
+    if (!Number.isInteger(capacity) || capacity <= 0) {
       const error = new Error(
-        "La cantidad de equipos debe ser mayor a 0"
+        "La capacidad debe ser un número entero mayor a 0",
       );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (teamsCapacity <= 0) {
+      const error = new Error("La cantidad de equipos debe ser mayor a 0");
       error.statusCode = 400;
       throw error;
     }
 
     if (playersPerTeam <= 0) {
       const error = new Error(
-        "La cantidad de jugadores por equipo debe ser mayor a 0"
+        "La cantidad de jugadores por equipo debe ser mayor a 0",
       );
       error.statusCode = 400;
       throw error;
@@ -45,9 +53,7 @@ class EventsService {
     }
 
     if (event.status === "cancelled") {
-      const error = new Error(
-        "No se puede modificar un evento cancelado"
-      );
+      const error = new Error("No se puede modificar un evento cancelado");
       error.statusCode = 400;
       throw error;
     }
@@ -56,20 +62,34 @@ class EventsService {
     const isOwner = event.organizer.toString() === user.id;
 
     if (!isAdmin && !isOwner) {
-      const error = new Error(
-        "No tenés permisos para modificar este evento"
-      );
+      const error = new Error("No tenés permisos para modificar este evento");
       error.statusCode = 403;
       throw error;
     }
 
+    if (eventData.date !== undefined) {
+      const updatedDate = new Date(eventData.date);
+
+      if (Number.isNaN(updatedDate.getTime()) || updatedDate <= new Date()) {
+        const error = new Error("La fecha del evento debe ser futura");
+        error.statusCode = 400;
+        throw error;
+      }
+    }
+
     if (
-      eventData.teamsCapacity !== undefined &&
-      eventData.teamsCapacity <= 0
+      eventData.capacity !== undefined &&
+      (!Number.isInteger(eventData.capacity) || eventData.capacity <= 0)
     ) {
       const error = new Error(
-        "La cantidad de equipos debe ser mayor a 0"
+        "La capacidad debe ser un número entero mayor a 0",
       );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (eventData.teamsCapacity !== undefined && eventData.teamsCapacity <= 0) {
+      const error = new Error("La cantidad de equipos debe ser mayor a 0");
       error.statusCode = 400;
       throw error;
     }
@@ -79,7 +99,7 @@ class EventsService {
       eventData.playersPerTeam <= 0
     ) {
       const error = new Error(
-        "La cantidad de jugadores por equipo debe ser mayor a 0"
+        "La cantidad de jugadores por equipo debe ser mayor a 0",
       );
       error.statusCode = 400;
       throw error;
@@ -95,13 +115,36 @@ class EventsService {
   }
 
   async getAll(filters = {}, options = {}) {
-    const {
-      page = 1,
-      limit = 10,
-      sort = "date",
-    } = options;
+    const { page = 1, limit = 10, sort = "date" } = options;
 
-    const events = await eventsRepository.findAll(filters, {
+    if (!Number.isInteger(page) || page < 1) {
+      const error = new Error("La página debe ser un entero mayor a 0");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+      const error = new Error("El límite debe ser un entero entre 1 y 100");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const allowedSorts = [
+      "date",
+      "-date",
+      "title",
+      "-title",
+      "price",
+      "-price",
+    ];
+
+    if (!allowedSorts.includes(sort)) {
+      const error = new Error("Criterio de ordenamiento inválido");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const data = await eventsRepository.findAll(filters, {
       page,
       limit,
       sort,
@@ -109,14 +152,12 @@ class EventsService {
 
     const total = await eventsRepository.count(filters);
 
-    const totalPages = Math.ceil(total / limit);
-
     return {
-      data: events,
+      data,
       page,
       limit,
       total,
-      totalPages,
+      totalPages: Math.ceil(total / limit),
     };
   }
 
@@ -129,12 +170,7 @@ class EventsService {
       throw error;
     }
 
-    const allowedStatuses = [
-      "draft",
-      "published",
-      "cancelled",
-      "finished",
-    ];
+    const allowedStatuses = ["draft", "published", "cancelled", "finished"];
 
     if (!allowedStatuses.includes(status)) {
       const error = new Error("Estado de evento inválido");
@@ -144,7 +180,7 @@ class EventsService {
 
     if (event.status === "cancelled") {
       const error = new Error(
-        "No se puede modificar el estado de un evento cancelado"
+        "No se puede modificar el estado de un evento cancelado",
       );
       error.statusCode = 400;
       throw error;
@@ -154,22 +190,17 @@ class EventsService {
     const isOwner = event.organizer.toString() === user.id;
 
     if (!isAdmin && !isOwner) {
-      const error = new Error(
-        "No tenés permisos para modificar este evento"
-      );
+      const error = new Error("No tenés permisos para modificar este evento");
       error.statusCode = 403;
       throw error;
     }
-    if (
-      status === "published" &&
-      event.status === "finished"
-    ) {
-      const error = new Error(
-        "No se puede publicar un evento finalizado"
-      );
+
+    if (status === "published" && event.status === "finished") {
+      const error = new Error("No se puede publicar un evento finalizado");
       error.statusCode = 400;
       throw error;
     }
+
     return await eventsRepository.update(id, { status });
   }
 

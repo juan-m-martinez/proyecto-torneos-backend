@@ -31,6 +31,12 @@ const eventSchema = new mongoose.Schema(
       trim: true,
     },
 
+    capacity: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+
     teamsCapacity: {
       type: Number,
       required: true,
@@ -61,7 +67,7 @@ const eventSchema = new mongoose.Schema(
       required: true,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const Event = mongoose.model("Event", eventSchema);

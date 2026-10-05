@@ -8,6 +8,7 @@ export const eventDTO = (event) => {
         category: event.category,
         date: event.date,
         location: event.location,
+        capacity: event.capacity,
         teamsCapacity: event.teamsCapacity,
         playersPerTeam: event.playersPerTeam,
         price: event.price,

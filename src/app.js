@@ -5,8 +5,9 @@ import { configurePassport } from "./config/passport.config.js"; // Importa nues
 import adminRouter from "./routes/admin.router.js";
 import eventsRouter from "./routes/events.router.js";
 import sessionsRouter from "./routes/sessions.router.js";
-import ticketsRouter from "./routes/tickets.router.js";
+import ticketsRouter, { eventTicketsRouter } from "./routes/tickets.router.js";
 import teamsRouter from "./routes/teams.router.js";
+import errorMiddleware from "./middlewares/error.middleware.js";
 
 const app = express();
 configurePassport(); // Registra las estrategias de autenticación en Passport.
@@ -17,10 +18,9 @@ app.use(passport.initialize()); // Inicializa Passport como middleware de Expres
 app.use("/api/events", eventsRouter);
 app.use("/api/sessions", sessionsRouter);
 app.use("/api/admin", adminRouter);
-app.use("/api/events/:eid/tickets", ticketsRouter);
+app.use("/api/events/:eid/tickets", eventTicketsRouter);
 app.use("/api/tickets", ticketsRouter);
 app.use("/api/events/:eid/teams", teamsRouter);
-
 
 app.get("/api/health", (req, res) => {
   res.json({
@@ -28,5 +28,7 @@ app.get("/api/health", (req, res) => {
     message: "Servidor activo",
   });
 });
+
+app.use(errorMiddleware);
 
 export default app;
