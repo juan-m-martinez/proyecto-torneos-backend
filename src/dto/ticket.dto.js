@@ -7,9 +7,7 @@ const referenceDTO = (value, fields) => {
     value.toString?.() ??
     null;
 
-  const populatedFields = fields.filter(
-    (field) => value[field] !== undefined,
-  );
+  const populatedFields = fields.filter((field) => value[field] !== undefined);
 
   if (populatedFields.length === 0) {
     return id;
@@ -35,11 +33,8 @@ export const ticketDTO = (ticket) => {
       "price",
       "status",
     ]),
-    user: referenceDTO(ticket.user, [
-      "first_name",
-      "last_name",
-      "email",
-    ]),
+    user: referenceDTO(ticket.user, ["first_name", "last_name", "email"]),
+    team: referenceDTO(ticket.team, ["name"]),
     quantity: ticket.quantity,
     status: ticket.status,
     reservationCode: ticket.reservationCode,

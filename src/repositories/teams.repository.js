@@ -1,25 +1,29 @@
 import teamsDAO from "../dao/teams.dao.js";
 
 class TeamsRepository {
-    async create(teamData) {
-        return await teamsDAO.create(teamData);
-    }
+  async create(teamData) {
+    return await teamsDAO.create(teamData);
+  }
 
-    async findById(id) {
-        return await teamsDAO.findById(id);
-    }
+  async findById(id) {
+    return await teamsDAO.findById(id);
+  }
 
-    async update(id, teamData) {
-        return await teamsDAO.update(id, teamData);
-    }
+  async deleteById(id) {
+    return await teamsDAO.deleteById(id);
+  }
 
-    async findByEventAndName(eventId, name) {
-        return await teamsDAO.findByEventAndName(eventId, name);
-    }
+  async update(id, teamData) {
+    return await teamsDAO.update(id, teamData);
+  }
 
-    async countByEvent(eventId) {
-        return await teamsDAO.countByEvent(eventId);
-    }
+  async findByEventAndName(eventId, name) {
+    return await teamsDAO.findByEventAndName(eventId, name);
+  }
+
+  async countByEvent(eventId) {
+    return await teamsDAO.countByEvent(eventId);
+  }
 }
 
 export default new TeamsRepository();

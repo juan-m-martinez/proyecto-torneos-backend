@@ -11,6 +11,10 @@ const ticketSchema = new mongoose.Schema({
     ref: "Event",
     required: true,
   },
+  team: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Team",
+  },
   status: {
     type: String,
     enum: ["active", "cancelled"],

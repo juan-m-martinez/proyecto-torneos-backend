@@ -28,25 +28,23 @@ class TicketsDAO {
     return tickets.reduce((total, ticket) => total + ticket.quantity, 0);
   }
 
-  async findByUser(userId) {
-    return await Ticket.find({ user: userId }).populate(
-      "event",
-      "title category date location price status",
-    );
-  }
-
-  async findByEvent(eventId) {
-    return await Ticket.find({ event: eventId }).populate(
-      "user",
-      "first_name last_name email",
-    );
-  }
-
   async update(id, ticketData) {
     return await Ticket.findByIdAndUpdate(id, ticketData, {
       new: true,
       runValidators: true,
     });
+  }
+
+  async findByUser(userId) {
+    return await Ticket.find({ user: userId })
+      .populate("event", "title category date location price status")
+      .populate("team", "name");
+  }
+
+  async findByEvent(eventId) {
+    return await Ticket.find({ event: eventId })
+      .populate("user", "first_name last_name email")
+      .populate("team", "name");
   }
 }
 
