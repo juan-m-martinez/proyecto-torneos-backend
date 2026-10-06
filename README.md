@@ -1,34 +1,22 @@
-# Plataforma de Torneos Deportivos
+# API Backend — Plataforma de Torneos Deportivos
 
-## Pre-entrega 8 — Arquitectura con DAO, Repository y DTO
+## Entrega final — Backend II
 
-En esta entrega se refactorizó la arquitectura del proyecto incorporando de
-forma explícita las capas DAO, Repository y DTO, manteniendo la separación
-de responsabilidades y sin modificar el comportamiento externo de la API.
+Entrega final de Backend II. API REST para gestionar usuarios, eventos deportivos, equipos e inscripciones mediante tickets, con control de capacidad y envío opcional de correos electrónicos. El proyecto utiliza autenticación con Passport y JWT, roles, validaciones y las capas DAO, Repository, Service, Controller y DTO.
 
-La lógica de negocio se sigue concentrando en la capa de Services, que ahora
-trabaja exclusivamente contra los Repositories (y nunca contra los modelos
-de Mongoose de forma directa). La capa DTO se incorpora para controlar
-explícitamente qué información se expone hacia el cliente, evitando
-devolver datos sensibles como la contraseña del usuario, incluso cuando
-esta se encuentra almacenada como hash.
-
-Las entidades `Event`, `Team` y `Ticket`, junto con la autenticación
-mediante Passport.js, JWT y cookies, el sistema de roles y autorización, y
-el envío de notificaciones por email mediante Nodemailer implementados en
-las entregas anteriores, se mantienen como base del sistema.
+Los controladores trabajan con los servicios; en particular, las operaciones de usuarios pasan por `usersService` y los controladores no acceden directamente a `usersRepository`.
 
 ## Temática
 
 La plataforma está orientada a la gestión de **torneos y eventos deportivos**,
-incluyendo la conformación de equipos y la emisión de tickets para los
-jugadores inscriptos.
+incluyendo la conformación de equipos y la reserva de tickets para los
+usuarios inscriptos.
 
 Roles:
 
 - `admin`: administración general.
 - `organizer`: creación y administración de sus propios eventos y equipos.
-- `user`: consulta de eventos, inscripción en equipos y gestión de sus propios tickets.
+- `user`: consulta de eventos, reserva de tickets en eventos publicados y gestión de sus propios tickets.
 
 ## Tecnologías
 
@@ -44,8 +32,8 @@ Roles:
 - cookie-parser → permite leer y administrar cookies HTTP.
 - Passport.js → centraliza y administra las estrategias de autenticación.
 - passport-local → estrategia de Passport utilizada para `register` y `login`.
-- passport-jwt → dependencia disponible para estrategias JWT de Passport y futuras extensiones de autenticación.
-- Nodemailer → utilizado para el envío de correos electrónicos desde el backend.
+- passport-jwt → estrategia de Passport utilizada para validar el JWT de la sesión (`current`).
+- Nodemailer → utilizado para el envío opcional de correos electrónicos desde el backend.
 - Módulos ESM → sistema de módulos utilizado para organizar imports y exports.
 - Postman → herramienta utilizada para probar los endpoints de la API.
 - Git y GitHub → control de versiones y almacenamiento remoto del proyecto.
@@ -55,8 +43,8 @@ Roles:
 Requisitos:
 
 - Node.js
+- MongoDB local o una instancia accesible
 - npm
-- Una cuenta de MongoDB Atlas
 
 ```bash
 git clone <URL_DEL_REPOSITORIO>
@@ -74,20 +62,18 @@ NODE_ENV=development
 MONGO_URL=mongodb+srv://<usuario>:<password>@<cluster>.mongodb.net/torneos
 JWT_SECRET=change_this_secret
 JWT_EXPIRES_IN=1h
-
-SMTP_HOST=smtp.example.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=tu_usuario_smtp
-SMTP_PASS=tu_password_smtp
-SMTP_FROM=no-reply@tudominio.com
+MAIL_HOST=smtp.example.com
+MAIL_PORT=587
+MAIL_USER=tu_usuario_smtp
+MAIL_PASS=tu_password_smtp
+MAIL_FROM=no-reply@tudominio.com
 ```
 
 La variable `MONGO_URL` debe contener la cadena de conexión de MongoDB Atlas.
 `JWT_SECRET` se utiliza para firmar y verificar los tokens JWT.
 `JWT_EXPIRES_IN` define el tiempo de expiración del JWT.
-Las variables `SMTP_*` configuran el servidor de correo utilizado por Nodemailer para el envío de notificaciones (`src/utils/mailer.js`).
-No subir nunca el archivo `.env` al repositorio.
+Las variables `MAIL_*` configuran el servidor de correo utilizado por Nodemailer para el envío de notificaciones (`src/utils/mailer.js`). Son necesarias para habilitar el envío de correos; si no se configuran, las operaciones principales de la API pueden probarse sin el servicio de correo.
+No subir nunca el archivo `.env` al repositorio. Usar `.env.example` como referencia para configurar el entorno.
 
 ## Ejecución
 
@@ -108,6 +94,14 @@ npm run dev
 ```text
 http://localhost:8080
 ```
+
+Comprobar que el servidor esté activo:
+GET /api/health
+Respuesta esperada:
+{
+"status": "ok",
+"message": "Servidor activo"
+}
 
 **Seed de usuarios de prueba:**
 
@@ -164,7 +158,8 @@ proyecto-torneos-backend/
 │   │   └── Ticket.js                  → define el modelo de tickets.
 │   ├── middlewares/
 │   │   ├── auth.middleware.js         → valida la sesión mediante JWT.
-│   │   └── authorize.middleware.js    → verifica los permisos según el rol.
+│   │   ├── authorize.middleware.js    → verifica los permisos según el rol.
+│   │   └── error.middleware.js        → maneja los errores de la aplicación.
 │   ├── seed/
 │   │   └── users.seed.js              → crea usuarios de prueba con los distintos roles.
 │   └── utils/
@@ -190,7 +185,7 @@ La respuesta que finalmente recibe el cliente pasa, además, por un DTO que filt
 Cada capa tiene una responsabilidad específica:
 
 - **Routes:** reciben las solicitudes HTTP y determinan qué middlewares y controllers ejecutar.
-- **Middlewares:** validan autenticación y autorización antes de llegar al controller.
+- **Middlewares:** validan autenticación y autorización antes de llegar al controller, y manejan los errores de la aplicación.
 - **Controllers:** reciben la solicitud, ejecutan la operación correspondiente y construyen la respuesta HTTP. No contienen lógica de negocio ni acceden directamente a MongoDB.
 - **Services:** contienen la lógica de negocio y las validaciones propias de la aplicación. Trabajan siempre contra los Repositories, nunca contra los modelos de Mongoose de forma directa.
 - **Repositories:** funcionan como una capa intermedia entre los Services y el DAO.
@@ -201,9 +196,11 @@ Cada capa tiene una responsabilidad específica:
 La lógica de negocio de los eventos se encuentra en `events.service.js`. De esta
 forma, las rutas y los controllers no contienen las reglas principales de negocio.
 
+Las operaciones de usuarios se resuelven mediante `usersService`. Los controllers no acceden directamente al repositorio de usuarios.
+
 ### Flujo de autenticación y autorización
 
-Para acceder a una ruta protegida, el flujo es:
+Las rutas protegidas de eventos, tickets, equipos y administración usan `auth.middleware.js`; las que requieren permisos por rol también usan `authorize.middleware.js`. La ruta `/api/sessions/current` valida el JWT mediante la estrategia `current` de Passport.
 
 ```text
 Cliente
@@ -239,7 +236,7 @@ El `auth.middleware.js` valida el JWT almacenado en la cookie `currentUser` y co
 
 El `authorize.middleware.js` recibe los roles permitidos para cada ruta y verifica que el usuario autenticado tenga uno de ellos.
 
-Passport.js se utiliza para las estrategias de registro y login.
+Passport.js se utiliza para las estrategias de registro, login y validación del JWT (`current`, mediante `passport-jwt`).
 
 El JWT continúa siendo generado durante el login y almacenado en la cookie `currentUser`.
 
@@ -324,7 +321,7 @@ El registro valida:
 - formato del email;
 - contraseña con mínimo de 6 caracteres;
 - email duplicado;
-- normalización mediante `trim()` y `toLowerCase()`;
+- normalización del email mediante `trim()` y `toLowerCase()`. El formato se valida antes de aplicar `trim()`, por lo que un email con espacios alrededor se rechaza como inválido;
 - asignación automática del rol `user`.
 
 Campos obligatorios faltantes:
@@ -388,6 +385,8 @@ Características de la cookie:
 - `maxAge: 3600000`
 - `secure: true` únicamente en producción
 
+En Postman, mantener habilitado el almacenamiento de cookies para enviar la cookie en las solicitudes siguientes.
+
 Respuesta exitosa:
 
 Código HTTP: `200 OK`
@@ -418,7 +417,7 @@ Endpoint:
 GET /api/sessions/current
 ```
 
-Esta ruta está protegida por `auth.middleware.js`, que obtiene el JWT desde la cookie `currentUser`, verifica su validez y coloca su payload en `req.user`.
+Esta ruta está protegida mediante la estrategia JWT `current` de Passport, que valida el token de la cookie `currentUser`. El controller obtiene los datos públicos completos del usuario mediante `usersService`. No se debe enviar cuerpo en esta solicitud.
 
 Respuesta exitosa:
 
@@ -429,22 +428,15 @@ Código HTTP: `200 OK`
   "status": "success",
   "payload": {
     "id": "...",
+    "first_name": "Carlos",
+    "last_name": "Gómez",
     "email": "carlos.gomez@mail.com",
     "role": "user"
   }
 }
 ```
 
-Si no existe una cookie válida o el JWT no es válido:
-
-Código HTTP: `401 Unauthorized`
-
-```json
-{
-  "status": "error",
-  "message": "No autenticado"
-}
-```
+Si no existe una cookie válida o el JWT no es válido, Passport rechaza la solicitud con `401 Unauthorized`. Esta ruta no define un manejador de error propio, por lo que el cuerpo de esa respuesta puede diferir del formato JSON del resto de la API.
 
 ### Logout
 
@@ -489,18 +481,19 @@ La entidad `Event` representa un evento deportivo administrado por un `organizer
 
 ### Campos
 
-| Campo | Tipo | Descripción |
-|---|---|---|
-| `title` | String | Título del evento |
-| `description` | String | Descripción del evento |
-| `category` | String | Categoría del evento |
-| `date` | Date | Fecha del evento |
-| `location` | String | Lugar donde se realiza |
-| `teamsCapacity` | Number | Cantidad máxima de equipos admitidos |
-| `playersPerTeam` | Number | Cantidad máxima de jugadores por equipo |
-| `price` | Number | Precio de inscripción |
-| `status` | String | Estado actual del evento |
-| `organizer` | ObjectId | Usuario organizador |
+| Campo            | Tipo     | Descripción                              |
+| ---------------- | -------- | ---------------------------------------- |
+| `title`          | String   | Título del evento                        |
+| `description`    | String   | Descripción del evento                   |
+| `category`       | String   | Categoría del evento                     |
+| `date`           | Date     | Fecha y hora futuras del evento          |
+| `location`       | String   | Lugar donde se realiza                   |
+| `capacity`       | Number   | Cantidad total de tickets disponibles    |
+| `teamsCapacity`  | Number   | Cantidad máxima de equipos admitidos     |
+| `playersPerTeam` | Number   | Cantidad máxima de jugadores por equipo  |
+| `price`          | Number   | Precio por ticket; no puede ser negativo |
+| `status`         | String   | Estado actual del evento                 |
+| `organizer`      | ObjectId | Usuario organizador                      |
 
 ### Estados disponibles
 
@@ -546,6 +539,7 @@ Body:
   "category": "futbol",
   "date": "2027-08-20",
   "location": "Club Central",
+  "capacity": 100,
   "teamsCapacity": 2,
   "playersPerTeam": 3,
   "price": 100
@@ -588,7 +582,7 @@ Código HTTP: `400 Bad Request`
 
 **Capacidad**
 
-`teamsCapacity` y `playersPerTeam` deben ser mayores a 0. Cada campo tiene su propio mensaje de error.
+`capacity` debe ser un entero positivo, y `teamsCapacity` y `playersPerTeam` deben ser mayores a 0. `teamsCapacity` y `playersPerTeam` tienen cada uno su propio mensaje de error; si `capacity` no es válida, la API también responde `400 Bad Request`.
 
 Si se envía `{ "teamsCapacity": 0 }`:
 
@@ -612,7 +606,7 @@ Código HTTP: `400 Bad Request`
 }
 ```
 
-`teamsCapacity` define la cantidad máxima de equipos que pueden crearse en el evento, y `playersPerTeam` define la cantidad máxima de jugadores que puede tener cada equipo. Ambos valores se detallan más adelante en la sección [Capacidad de los eventos](#capacidad-de-los-eventos).
+`capacity` define la cantidad total de tickets disponibles para el evento, `teamsCapacity` define la cantidad máxima de equipos que pueden crearse en el evento, y `playersPerTeam` define la cantidad máxima de jugadores que puede tener cada equipo. Los tres valores se detallan más adelante en la sección [Capacidad de los eventos](#capacidad-de-los-eventos).
 
 **Precio**
 
@@ -760,6 +754,8 @@ Código HTTP: `403 Forbidden`
 
 **Admin:** un `admin` puede modificar eventos pertenecientes a cualquier organizer.
 
+Se envían los campos que admite la actualización. La edición no cambia el organizador ni el estado del evento; el estado se modifica únicamente mediante `PATCH /api/events/:id/status`.
+
 **Evento inexistente:**
 
 Código HTTP: `404 Not Found`
@@ -853,12 +849,12 @@ La entidad `Team` representa un equipo inscripto en un evento.
 
 ### Campos
 
-| Campo | Tipo | Descripción |
-|---|---|---|
-| `name` | String | Nombre del equipo |
-| `event` | ObjectId | Evento al que pertenece el equipo |
-| `captain` | ObjectId | Usuario que oficia de capitán |
-| `teamPassword` | String | Contraseña del equipo (hasheada con bcrypt) |
+| Campo          | Tipo     | Descripción                                 |
+| -------------- | -------- | ------------------------------------------- |
+| `name`         | String   | Nombre del equipo                           |
+| `event`        | ObjectId | Evento al que pertenece el equipo           |
+| `captain`      | ObjectId | Usuario que oficia de capitán               |
+| `teamPassword` | String   | Contraseña del equipo (hasheada con bcrypt) |
 
 Los nombres de equipo son únicos dentro de cada evento, aunque pueden repetirse entre eventos distintos.
 
@@ -884,7 +880,9 @@ Body:
 }
 ```
 
-El `organizer` (dueño del evento) o el `admin` crean el equipo y definen quién será el capitán mediante `captainId`. Al crear el equipo, el capitán recibe automáticamente su ticket de inscripción.
+El `organizer` (dueño del evento) o el `admin` crean el equipo y definen quién será el capitán mediante `captainId`. Al crear un equipo, su capitán recibe un ticket activo de cantidad 1, asociado al equipo. Ese ticket ocupa un lugar de capacity; por eso el evento debe estar publicado y tener cupo disponible.
+
+El ticket creado no se incluye en la respuesta de este endpoint. El capitán puede consultarlo en `GET /api/tickets/my-tickets` iniciando sesión con su propia cuenta.
 
 La `teamPassword` se almacena utilizando bcrypt, de la misma forma que las contraseñas de usuario.
 
@@ -936,7 +934,7 @@ Código HTTP: `400 Bad Request`
 }
 ```
 
-**Capitán ya inscripto:** el usuario elegido como capitán no puede tener ya una inscripción activa en el mismo evento (en otro equipo).
+**Capitán ya inscripto:** el usuario elegido como capitán no puede tener ya una inscripción activa en el mismo evento.
 
 Código HTTP: `409 Conflict`
 
@@ -947,6 +945,16 @@ Código HTTP: `409 Conflict`
 }
 ```
 
+**Evento no publicado:** el evento debe estar publicado para crear el ticket del capitán.
+
+Código HTTP: `400 Bad Request`
+
+````json
+{
+  "status": "error",
+  "message": "El evento no está disponible para inscripciones"
+}
+
 **Nombre de equipo duplicado:** el nombre debe ser único dentro del evento.
 
 Código HTTP: `409 Conflict`
@@ -956,7 +964,7 @@ Código HTTP: `409 Conflict`
   "status": "error",
   "message": "Ya existe un equipo con ese nombre en este evento"
 }
-```
+````
 
 **Contraseña de equipo demasiado corta:** `teamPassword` debe tener al menos 6 caracteres.
 
@@ -979,7 +987,7 @@ GET /api/events/:eid/teams/:tid
 
 Acceso: cualquier usuario autenticado (no es un endpoint público; requiere el middleware `auth`, pero no exige un rol en particular).
 
-Permite consultar los datos del equipo, incluyendo quién es actualmente el capitán.
+Permite consultar los datos del equipo, incluyendo quién es actualmente el capitán. El servicio busca el equipo únicamente por `:tid`; no comprueba que pertenezca al evento indicado en `:eid`.
 
 Si el equipo no existe:
 
@@ -994,32 +1002,31 @@ Código HTTP: `404 Not Found`
 
 ## Entidad Ticket
 
-La entidad `Ticket` representa la inscripción de un usuario en un equipo dentro de un evento. Cada usuario ocupa exactamente un cupo: el campo `quantity` se establece automáticamente en `1` y el usuario no puede elegir una cantidad arbitraria.
+La entidad `Ticket` representa la inscripción de un usuario en un evento publicado. Una inscripción reserva una cantidad de tickets: `quantity` debe ser un entero mayor que cero y no puede superar los cupos disponibles del evento.
 
 ### Campos
 
-| Campo | Tipo | Descripción |
-|---|---|---|
-| `user` | ObjectId | Usuario inscripto |
-| `event` | ObjectId | Evento al que pertenece la inscripción |
-| `team` | ObjectId | Equipo en el que se inscribió el usuario |
-| `status` | String | Estado del ticket |
-| `quantity` | Number | Cantidad de cupos ocupados (siempre `1`) |
-| `reservationCode` | String | Código de reserva generado automáticamente |
-| `createdAt` | Date | Fecha de creación del ticket |
-| `cancelledAt` | Date | Fecha de cancelación del ticket (si corresponde) |
+| Campo             | Tipo     | Descripción                                                       |
+| ----------------- | -------- | ----------------------------------------------------------------- |
+| `user`            | ObjectId | Usuario inscripto                                                 |
+| `event`           | ObjectId | Evento al que pertenece la inscripción                            |
+| `team`            | ObjectId | Equipo asociado; se completa en el ticket automático del capitán. |
+| `status`          | String   | Estado del ticket                                                 |
+| `quantity`        | Number   | Cantidad de tickets reservados                                    |
+| `reservationCode` | String   | Código de reserva generado automáticamente                        |
+| `createdAt`       | Date     | Fecha de creación del ticket                                      |
+| `cancelledAt`     | Date     | Fecha de cancelación del ticket (si corresponde)                  |
 
 ### Estados disponibles
 
 El campo `status` utiliza los siguientes valores:
 
-- `confirmed`
-- `pending`
-- `cancelled`
+- `active`: inscripción vigente; ocupa capacidad.
+- `cancelled`: inscripción cancelada; ya no ocupa capacidad.
 
 ## Tickets
 
-### Inscribirse en un equipo
+### Crear inscripción
 
 Endpoint:
 
@@ -1033,21 +1040,21 @@ Body:
 
 ```json
 {
-  "teamId": "ID_DEL_EQUIPO",
-  "teamPassword": "123456"
+  "quantity": 2
 }
 ```
+
+La inscripción no incluye `teamId` ni `teamPassword`.
 
 Para poder inscribirse:
 
 - el evento debe existir;
 - el evento debe estar `published`;
-- el equipo debe existir y pertenecer al evento indicado;
-- la `teamPassword` enviada debe ser correcta;
-- el equipo no debe haber alcanzado `playersPerTeam`;
-- el usuario no debe estar previamente inscripto en el evento.
+- `quantity` debe ser un entero mayor que cero;
+- `quantity` no puede superar los cupos disponibles del evento (`capacity`);
+- el usuario no debe tener otra inscripción activa en el mismo evento.
 
-Las validaciones se encuentran en `tickets.service.js` y se ejecutan en este orden:
+Las validaciones se encuentran en `tickets.service.js`.
 
 #### Reglas de negocio para inscribirse
 
@@ -1073,47 +1080,25 @@ Código HTTP: `400 Bad Request`
 }
 ```
 
-**Equipo inexistente**
-
-Código HTTP: `404 Not Found`
-
-```json
-{
-  "status": "error",
-  "message": "Equipo no encontrado"
-}
-```
-
-**Equipo de otro evento:** el `teamId` enviado debe pertenecer al evento indicado en la URL (`:eid`).
+**Cantidad inválida:** `quantity` debe ser un entero mayor que cero.
 
 Código HTTP: `400 Bad Request`
 
 ```json
 {
   "status": "error",
-  "message": "El equipo no pertenece a este evento"
+  "message": "El evento no tiene una capacidad válida"
 }
 ```
 
-**Contraseña de equipo incorrecta**
+**Capacidad insuficiente:** la cantidad solicitada supera los cupos disponibles del evento.
 
-Código HTTP: `401 Unauthorized`
+Código HTTP: `409 Conflict`
 
 ```json
 {
   "status": "error",
-  "message": "Contraseña de equipo incorrecta"
-}
-```
-
-**Equipo sin cupos:** el equipo ya alcanzó la cantidad máxima de jugadores definida por `playersPerTeam`.
-
-Código HTTP: `400 Bad Request`
-
-```json
-{
-  "status": "error",
-  "message": "El equipo ya alcanzó la cantidad máxima de jugadores"
+  "message": "No hay cupo suficiente para esta inscripción"
 }
 ```
 
@@ -1128,7 +1113,7 @@ Código HTTP: `409 Conflict`
 }
 ```
 
-Cada inscripción exitosa genera un código de reserva, por ejemplo:
+Respuesta exitosa: `201 Created`. Incluye el ticket creado, su estado y el código de reserva. Cada inscripción exitosa genera un código de reserva, por ejemplo:
 
 ```text
 TKT-BB63XS
@@ -1139,7 +1124,7 @@ TKT-BB63XS
 Endpoint:
 
 ```http
-GET /api/tickets
+GET /api/tickets/my-tickets
 ```
 
 Acceso: cualquier usuario autenticado.
@@ -1195,7 +1180,7 @@ Al cancelar:
 - `status` → `cancelled`
 - `cancelledAt` → fecha de cancelación
 
-No se elimina físicamente el ticket.
+No se elimina físicamente el ticket. Al cancelar una inscripción, su cantidad vuelve a estar disponible para el evento.
 
 **Ticket ya cancelado:** si el ticket ya se encuentra cancelado, no se permite volver a cancelarlo.
 
@@ -1210,47 +1195,26 @@ Código HTTP: `400 Bad Request`
 
 ## Notificaciones por email
 
-El proyecto utiliza Nodemailer para enviar notificaciones por email en formato de texto plano (sin plantillas HTML). La configuración del servidor SMTP se define mediante las variables de entorno `SMTP_*` (ver [Variables de entorno](#variables-de-entorno)).
+El proyecto utiliza Nodemailer para enviar notificaciones por email en formato de texto plano (sin plantillas HTML). La configuración del servidor SMTP se define mediante las variables de entorno `MAIL_*` (ver [Variables de entorno](#variables-de-entorno)).
 
 Actualmente se envían notificaciones en dos casos:
 
-- **Inscripción confirmada:** el usuario recibe un email con el evento, el equipo y su código de reserva.
+- **Inscripción confirmada:** el usuario recibe un email con el evento y su código de reserva.
 - **Inscripción cancelada:** el usuario recibe un email informando la cancelación junto con su código de reserva.
 
 La implementación se encuentra en `src/utils/mailer.js`.
 
-> **Nota:** el envío de email se ejecuta si las variables `SMTP_USER` y `SMTP_PASS` están definidas en el `.env`. Si no se configuran, la inscripción o la cancelación se procesan igualmente, pero no se envía ningún correo.
-
-## Capitanía de equipos
-
-Cuando el capitán cancela su propio ticket:
-
-1. Se busca otro jugador activo del mismo equipo.
-2. Si existe otro jugador activo, este pasa a ser automáticamente el nuevo capitán.
-3. Si no existen jugadores activos, el equipo queda sin capitán, pero **no se elimina**.
-
-```text
-Capitán original
-      ↓
-Cancela su ticket
-      ↓
-Ticket = cancelled
-      ↓
-Se busca jugador activo
-      ↓
-Jugador 3
-      ↓
-Jugador 3 pasa a ser capitán
-```
-
-Esto permite conservar el historial del equipo aun cuando cambie su capitán.
+> **Nota:** el envío de email se ejecuta si las variables `MAIL_USER` y `MAIL_PASS` están definidas en el `.env`. Si no se configuran, la inscripción o la cancelación se procesan igualmente, pero no se envía ningún correo.
+> Si el servidor SMTP falla, la solicitud puede devolver un error aunque el ticket ya se haya creado o cancelado, porque el cambio se guarda antes de intentar enviar el correo.
+> El envío de correos depende de configurar credenciales SMTP válidas en las variables `MAIL_*` y no se considera verificado mientras no se pruebe con una cuenta real.
 
 ## Capacidad de los eventos
 
-La capacidad de un evento se maneja mediante dos campos:
+Un evento tiene tres límites distintos:
 
-- `teamsCapacity`
-- `playersPerTeam`
+- `capacity`: cantidad total de tickets disponibles para el evento.
+- `teamsCapacity`: cantidad máxima de equipos que pueden participar.
+- `playersPerTeam`: cantidad máxima de jugadores permitidos por equipo.
 
 Por ejemplo:
 
@@ -1265,31 +1229,40 @@ Significa:
 - Máximo de jugadores por equipo: 3
 - Máximo total de jugadores: 2 × 3 = 6
 
-La creación de equipos controla `teamsCapacity`, mientras que la inscripción de jugadores (generación de tickets) controla `playersPerTeam`.
+Para obtener la capacidad máxima de jugadores en equipos, se usa la fórmula:
+
+```text
+capacidad total de jugadores = teamsCapacity × playersPerTeam
+```
+
+Esta fórmula describe los cupos de jugadores en equipos. No reemplaza el campo `capacity`, que controla los tickets.
+
+La creación de equipos controla `teamsCapacity`, mientras que la reserva de tickets (inscripciones) controla `capacity` y se administra por separado del límite de equipos y jugadores.
 
 ## Roles y autorización
 
 La API utiliza tres roles:
 
-- `user` → usuario registrado. Puede consultar eventos, inscribirse en equipos y gestionar sus propios tickets.
+- `user` → usuario registrado. Puede consultar eventos, reservar tickets en eventos publicados y gestionar sus propios tickets.
 - `organizer` → puede consultar eventos, crear eventos, modificar sus propios eventos, actualizar su estado y crear equipos dentro de sus propios eventos.
 - `admin` → puede consultar eventos, crear eventos, modificar cualquier evento, actualizar el estado de cualquier evento, crear equipos en cualquier evento y consultar todos los usuarios.
 
 ### Matriz de permisos
 
-| Acción | user | organizer | admin |
-|---|---:|---:|---:|
-| Consultar eventos | ✅ | ✅ | ✅ |
-| Crear eventos | ❌ | ✅ | ✅ |
-| Modificar eventos propios | ❌ | ✅ | ✅ |
-| Modificar cualquier evento | ❌ | ❌ | ✅ |
-| Actualizar estado de eventos propios | ❌ | ✅ | ✅ |
-| Actualizar estado de cualquier evento | ❌ | ❌ | ✅ |
-| Crear equipos de sus eventos | ❌ | ✅ | ✅ |
-| Inscribirse en equipos | ✅ | ✅ | ✅ |
-| Cancelar ticket propio | ✅ | ✅ | ✅ |
-| Consultar tickets de un evento propio | ❌ | ✅ | ✅ |
-| Ver todos los usuarios | ❌ | ❌ | ✅ |
+| Acción                                 | user | organizer | admin |
+| -------------------------------------- | ---: | --------: | ----: |
+| Consultar eventos                      |   ✅ |        ✅ |    ✅ |
+| Crear eventos                          |   ❌ |        ✅ |    ✅ |
+| Modificar eventos propios              |   ❌ |        ✅ |    ✅ |
+| Modificar cualquier evento             |   ❌ |        ❌ |    ✅ |
+| Actualizar estado de eventos propios   |   ❌ |        ✅ |    ✅ |
+| Actualizar estado de cualquier evento  |   ❌ |        ❌ |    ✅ |
+| Crear equipos de sus eventos           |   ❌ |        ✅ |    ✅ |
+| Reservar tickets en eventos publicados |   ✅ |        ✅ |    ✅ |
+| Consultar mis tickets                  |   ✅ |        ✅ |    ✅ |
+| Cancelar ticket propio                 |   ✅ |        ✅ |    ✅ |
+| Consultar tickets de un evento propio  |   ❌ |        ✅ |    ✅ |
+| Ver todos los usuarios                 |   ❌ |        ❌ |    ✅ |
 
 La consulta de eventos puede utilizar el filtro `GET /api/events?status=published` para consultar específicamente eventos publicados.
 
@@ -1299,6 +1272,7 @@ La autorización está separada en middlewares reutilizables:
 
 - `auth.middleware.js` → valida el JWT almacenado en la cookie `currentUser`. Si no existe una sesión válida, responde `401`.
 - `authorize.middleware.js` → recibe los roles permitidos (por ejemplo `authorize("organizer", "admin")`) y verifica el rol de `req.user`. Si el usuario está autenticado pero no tiene permisos, responde `403`.
+- `error.middleware.js` → maneja los errores de la aplicación.
 
 ### Diferencia entre 401 y 403
 
@@ -1324,25 +1298,25 @@ La propiedad de los eventos también se valida en el backend. Un `organizer` sol
 
 ## Endpoints
 
-| Método | Endpoint | Descripción | Acceso |
-|---|---|---|---|
-| GET | `/api/health` | Verifica que el servidor esté activo | Público |
-| GET | `/api/events` | Lista eventos con filtros y paginación | Público |
-| GET | `/api/events/:id` | Consulta un evento por ID | Público |
-| POST | `/api/events` | Crea un evento | `organizer`, `admin` |
-| PUT | `/api/events/:id` | Modifica un evento | `organizer`, `admin` + propietario |
-| PATCH | `/api/events/:id/status` | Actualiza el estado de un evento | `organizer`, `admin` + propietario |
-| POST | `/api/events/:eid/teams` | Crea un equipo dentro de un evento | `organizer` (propietario), `admin` |
-| GET | `/api/events/:eid/teams/:tid` | Consulta un equipo de un evento | Autenticado |
-| POST | `/api/events/:eid/tickets` | Inscribe al usuario autenticado en un equipo | Autenticado |
-| GET | `/api/tickets` | Consulta los tickets del usuario autenticado | Autenticado |
-| GET | `/api/events/:eid/tickets` | Consulta los tickets de un evento | `organizer` (propietario), `admin` |
-| PATCH | `/api/tickets/:tid/cancel` | Cancela un ticket | Propietario del ticket, `admin` |
-| POST | `/api/sessions/register` | Registra un nuevo usuario | Público |
-| POST | `/api/sessions/login` | Inicia sesión | Público |
-| GET | `/api/sessions/current` | Obtiene el usuario autenticado | Autenticado |
-| POST | `/api/sessions/logout` | Cierra la sesión | Público |
-| GET | `/api/admin/users` | Consulta todos los usuarios | `admin` |
+| Método | Endpoint                      | Descripción                                  | Acceso                             |
+| ------ | ----------------------------- | -------------------------------------------- | ---------------------------------- |
+| GET    | `/api/health`                 | Verifica que el servidor esté activo         | Público                            |
+| GET    | `/api/events`                 | Lista eventos con filtros y paginación       | Público                            |
+| GET    | `/api/events/:id`             | Consulta un evento por ID                    | Público                            |
+| POST   | `/api/events`                 | Crea un evento                               | `organizer`, `admin`               |
+| PUT    | `/api/events/:id`             | Modifica un evento                           | `organizer`, `admin` + propietario |
+| PATCH  | `/api/events/:id/status`      | Actualiza el estado de un evento             | `organizer`, `admin` + propietario |
+| POST   | `/api/events/:eid/teams`      | Crea un equipo dentro de un evento           | `organizer` (propietario), `admin` |
+| GET    | `/api/events/:eid/teams/:tid` | Consulta un equipo de un evento              | Autenticado                        |
+| POST   | `/api/events/:eid/tickets`    | Crea una inscripción (reserva de tickets)    | Autenticado                        |
+| GET    | `/api/tickets/my-tickets`     | Consulta los tickets del usuario autenticado | Autenticado                        |
+| GET    | `/api/events/:eid/tickets`    | Consulta los tickets de un evento            | `organizer` (propietario), `admin` |
+| PATCH  | `/api/tickets/:tid/cancel`    | Cancela un ticket                            | Propietario del ticket, `admin`    |
+| POST   | `/api/sessions/register`      | Registra un nuevo usuario                    | Público                            |
+| POST   | `/api/sessions/login`         | Inicia sesión                                | Público                            |
+| GET    | `/api/sessions/current`       | Obtiene el usuario autenticado               | Autenticado                        |
+| POST   | `/api/sessions/logout`        | Cierra la sesión                             | Público                            |
+| GET    | `/api/admin/users`            | Consulta todos los usuarios                  | `admin`                            |
 
 No se utiliza eliminación física de eventos ni de tickets.
 
@@ -1363,20 +1337,28 @@ Respuesta:
 }
 ```
 
+### Administración de usuarios
+
+```http
+GET /api/admin/users
+```
+
+Acceso: `admin`. Las respuestas de usuarios omiten la contraseña.
+
 ## Manejo de errores
 
 La API diferencia los siguientes códigos HTTP principales:
 
-| Código | Significado |
-|---|---|
-| `400` | Datos inválidos o regla de negocio incumplida |
-| `401` | Usuario no autenticado o credenciales inválidas |
-| `403` | Usuario autenticado sin permisos |
-| `404` | Recurso no encontrado |
-| `409` | Conflicto o recurso duplicado |
-| `500` | Error interno del servidor |
+| Código | Significado                                                            |
+| ------ | ---------------------------------------------------------------------- |
+| `400`  | Datos inválidos o regla de negocio incumplida                          |
+| `401`  | Usuario no autenticado o credenciales inválidas                        |
+| `403`  | Usuario autenticado sin permisos                                       |
+| `404`  | Recurso no encontrado                                                  |
+| `409`  | Conflicto, por ejemplo, inscripción duplicada o capacidad insuficiente |
+| `500`  | Error interno del servidor                                             |
 
-Todas las respuestas de error mantienen un formato consistente:
+Las respuestas de error de la API usan el siguiente formato (el `401` de `GET /api/sessions/current` lo resuelve Passport y su cuerpo puede ser distinto):
 
 ```json
 {
@@ -1400,11 +1382,9 @@ Consulta eventos
    ↓
 Evento publicado
    ↓
-Selecciona equipo
+Solicita cantidad de tickets (quantity)
    ↓
-Ingresa contraseña del equipo
-   ↓
-Validación de capacidad
+Validación de capacidad disponible
    ↓
 Validación de inscripción duplicada
    ↓
@@ -1427,9 +1407,17 @@ npm run seed:users
 
 Crea usuarios de prueba con los distintos roles disponibles (`user`, `organizer`, `admin`). Las contraseñas de estos usuarios se almacenan utilizando bcrypt, igual que en el registro normal.
 
+Usuarios creados por el seed:
+
+| Rol           | Email                | Contraseña |
+| ------------- | -------------------- | ---------- |
+| Usuario       | `user@test.com`      | `123456`   |
+| Organizador   | `organizer@test.com` | `123456`   |
+| Administrador | `admin@test.com`     | `123456`   |
+
 ## Pruebas realizadas
 
-Las funcionalidades principales fueron verificadas mediante Postman.
+Las siguientes funcionalidades fueron verificadas mediante Postman.
 
 **Autenticación y usuarios**
 
@@ -1459,7 +1447,7 @@ Las funcionalidades principales fueron verificadas mediante Postman.
 **Reglas de negocio de Events**
 
 - Crear evento con fecha pasada → 400.
-- Crear evento con `teamsCapacity` o `playersPerTeam` en 0 → 400.
+- Crear evento con `capacity`, `teamsCapacity` o `playersPerTeam` en 0 → 400.
 - Actualizar evento con capacidad en 0 → 400.
 - Actualizar evento con precio negativo → 400.
 - Publicar evento → 200.
@@ -1470,45 +1458,26 @@ Las funcionalidades principales fueron verificadas mediante Postman.
 - Consultar evento existente → 200.
 - Consultar evento inexistente → 404.
 
-**Equipos**
-
-- Creación de equipos.
-- Asignación automática de capitán al crear el equipo.
-- Generación automática del ticket del capitán.
-- Contraseña de equipo almacenada mediante bcrypt.
-- Contraseña de equipo con menos de 6 caracteres → 400.
-- Nombres de equipo únicos dentro de un mismo evento → 409.
-- Crear equipo en un evento inexistente → 404.
-- Organizer sin permisos (no dueño del evento) creando un equipo → 403.
-- Crear equipo superando el `teamsCapacity` del evento → 400.
-- Asignar como capitán a un usuario ya inscripto en el evento → 409.
-- Consultar un equipo sin estar autenticado → 401.
-
 **Tickets e inscripciones**
 
-- Inscripción de jugadores en un equipo.
+- Creación de inscripciones con `quantity`.
 - Inscripción en un evento no publicado → 400.
-- Inscripción en un equipo inexistente → 404.
-- Inscripción con un equipo que no pertenece al evento → 400.
-- Validación de la contraseña del equipo → 401 si es incorrecta.
-- Control de jugadores por equipo (`playersPerTeam`) → 400 si está lleno.
+- Control de capacidad: cantidad superior a los cupos disponibles → 409.
 - Prevención de inscripción duplicada del mismo usuario en un evento → 409.
-- Consulta de tickets propios (`/api/tickets`).
-- Consulta de tickets por evento, incluyendo cancelados.
+- Consulta de tickets propios (`/api/tickets/my-tickets`).
+- Consulta de tickets por evento, incluyendo cancelados, y permisos para consultarlos.
 - Cancelación de tickets.
 - Intentar cancelar un ticket ya cancelado → 400.
 - Conservación del historial de tickets cancelados.
 - Liberación de cupos después de una cancelación.
 
-**Capitanía de equipos**
+**Creación de equipo y ticket del capitán:** 
 
-- Transferencia automática de capitanía cuando el capitán cancela su ticket.
-- Equipo sin jugadores activos: el equipo se conserva sin capitán.
+- Se creó un equipo con `POST /api/events/:eid/teams` y se verificó con `GET /api/tickets/my-tickets` que el capitán recibió un ticket activo de cantidad `1`, asociado al equipo.
 
 **Notificaciones**
 
-- Envío de email al confirmar una inscripción.
-- Envío de email al cancelar una inscripción.
+- El envío de correos no se considera verificado mientras no se pruebe con una cuenta SMTP real configurada en las variables `MAIL_*`.
 
 **DTO y seguridad de datos**
 
@@ -1525,17 +1494,13 @@ Se verificaron:
 - listado general;
 - filtro por `status`;
 - filtro por `category`;
-- filtro por `location`;
-- filtro por `dateFrom`;
-- filtro por `dateTo`;
-- combinación de filtros;
-- paginación (`page`, `limit`, `total`, `totalPages`);
-- ordenamiento mediante `sort`.
+- combinación de `status` y `category`;
+- paginación (`page`, `limit`, `total`, `totalPages`).
 
 Ejemplo probado:
 
 ```http
-GET /api/events?status=published&category=workshop&page=2&limit=5
+GET /api/events?status=published&category=workshop&page=1&limit=5
 ```
 
 ## Seguridad
@@ -1553,6 +1518,8 @@ El archivo `.env` está incluido en `.gitignore`.
 Las contraseñas se almacenan utilizando bcrypt y nunca se devuelven en las respuestas de la API.
 
 Los JWT se firman utilizando la variable de entorno `JWT_SECRET`.
+
+Usar `.env.example` como referencia para configurar el entorno. No guardar contraseñas ni secretos reales en el código fuente.
 
 ## Control de versiones
 
@@ -1573,4 +1540,4 @@ Las siguientes funcionalidades pueden incorporarse sobre la base de la arquitect
 
 ## Estado del proyecto
 
-Proyecto desarrollado como parte de Backend II. Esta versión corresponde a la Pre-entrega 8, que incorpora la arquitectura con DAO, Repository y DTO sobre la base funcional de entregas anteriores.
+Proyecto desarrollado como parte de Backend II. Esta versión corresponde a la entrega final, que incorpora la arquitectura con DAO, Repository y DTO, el control de capacidad de tickets y el envío opcional de correos sobre la base funcional de entregas anteriores.

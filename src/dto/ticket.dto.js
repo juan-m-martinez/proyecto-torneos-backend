@@ -1,23 +1,44 @@
-export const ticketDTO = (ticket) => {
-    if (!ticket) return null;
+const referenceDTO = (value, fields) => {
+  if (!value) return null;
 
-    return {
-        id: ticket._id,
-        status: ticket.status,
-        quantity: ticket.quantity,
-        reservationCode: ticket.reservationCode,
-        cancelledAt: ticket.cancelledAt,
-        createdAt: ticket.createdAt,
-        user: ticket.user
-            ? {
-                  id: ticket.user._id,
-                  first_name: ticket.user.first_name,
-                  last_name: ticket.user.last_name,
-                  email: ticket.user.email,
-                  role: ticket.user.role,
-              }
-            : ticket.user,
-        event: ticket.event,
-        team: ticket.team,
-    };
+  const id =
+    value._id?.toString?.() ??
+    value.id?.toString?.() ??
+    value.toString?.() ??
+    null;
+
+  const populatedFields = fields.filter((field) => value[field] !== undefined);
+
+  if (populatedFields.length === 0) {
+    return id;
+  }
+
+  const details = Object.fromEntries(
+    populatedFields.map((field) => [field, value[field]]),
+  );
+
+  return { id, ...details };
+};
+
+export const ticketDTO = (ticket) => {
+  if (!ticket) return null;
+
+  return {
+    id: ticket._id?.toString?.() ?? ticket.id,
+    event: referenceDTO(ticket.event, [
+      "title",
+      "category",
+      "date",
+      "location",
+      "price",
+      "status",
+    ]),
+    user: referenceDTO(ticket.user, ["first_name", "last_name", "email"]),
+    team: referenceDTO(ticket.team, ["name"]),
+    quantity: ticket.quantity,
+    status: ticket.status,
+    reservationCode: ticket.reservationCode,
+    createdAt: ticket.createdAt,
+    cancelledAt: ticket.cancelledAt,
+  };
 };

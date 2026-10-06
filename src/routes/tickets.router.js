@@ -2,13 +2,14 @@ import { Router } from "express";
 import auth from "../middlewares/auth.middleware.js";
 import { registerTicket, getMyTickets, cancelTicket, getEventTickets } from "../controllers/tickets.controller.js";
 
-const router = Router({ mergeParams: true });
+const ticketsRouter = Router();
+const eventTicketsRouter = Router({ mergeParams: true });
 
-router.post("/", auth, registerTicket);
-router.get("/my-tickets", auth, getMyTickets);
+ticketsRouter.get("/my-tickets", auth, getMyTickets);
+ticketsRouter.patch("/:tid/cancel", auth, cancelTicket);
 
-router.patch("/:tid/cancel", auth, cancelTicket);
+eventTicketsRouter.post("/", auth, registerTicket);
+eventTicketsRouter.get("/", auth, getEventTickets);
 
-router.get("/", auth, getEventTickets);
-
-export default router;
+export { eventTicketsRouter };
+export default ticketsRouter;

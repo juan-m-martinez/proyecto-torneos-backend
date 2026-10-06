@@ -1,73 +1,51 @@
 import Ticket from "../models/Ticket.js";
 
 class TicketsDAO {
+  async create(ticketData) {
+    return await Ticket.create(ticketData);
+  }
 
-    async create(ticketData) {
-        return await Ticket.create(ticketData);
-    }
+  async findById(id) {
+    return await Ticket.findById(id);
+  }
 
-    async findById(id) {
-        return await Ticket.findOne({ _id: id });
-    }
+  async findActiveByUserAndEvent(userId, eventId) {
+    return await Ticket.findOne({
+      user: userId,
+      event: eventId,
+      status: "active",
+    });
+  }
 
-    async update(id, ticketData) {
-        return await Ticket.findByIdAndUpdate(
-            id,
-            ticketData,
-            {
-                new: true,
-                runValidators: true,
-            }
-        );
-    }
+  async countActiveByEvent(eventId) {
+    const tickets = await Ticket.find({
+      event: eventId,
+      status: "active",
+    })
+      .select("quantity")
+      .lean();
 
-    async findActiveByUserAndEvent(userId, eventId) {
-        return await Ticket.findOne({
-            user: userId,
-            event: eventId,
-            status: { $ne: "cancelled" },
-        });
-    }
+    return tickets.reduce((total, ticket) => total + ticket.quantity, 0);
+  }
 
-    async countActiveByEvent(eventId) {
-        return await Ticket.countDocuments({
-            event: eventId,
-            status: { $ne: "cancelled" },
-        });
-    }
+  async update(id, ticketData) {
+    return await Ticket.findByIdAndUpdate(id, ticketData, {
+      new: true,
+      runValidators: true,
+    });
+  }
 
-    async countActiveByTeam(teamId) {
-        return await Ticket.countDocuments({
-            team: teamId,
-            status: { $ne: "cancelled" },
-        });
-    }
+  async findByUser(userId) {
+    return await Ticket.find({ user: userId })
+      .populate("event", "title category date location price status")
+      .populate("team", "name");
+  }
 
-    async findActiveByTeam(teamId, excludeTicketId) {
-        return await Ticket.findOne({
-            team: teamId,
-            status: { $ne: "cancelled" },
-            _id: { $ne: excludeTicketId },
-        });
-    }
-
-    async findByUser(userId) {
-        return await Ticket.find({
-            user: userId,
-        }).populate({
-            path: "user",
-            select: "-password",
-        });
-    }
-
-    async findByEvent(eventId) {
-        return await Ticket.find({
-            event: eventId,
-        }).populate({
-            path: "user",
-            select: "-password",
-        });
-    }
+  async findByEvent(eventId) {
+    return await Ticket.find({ event: eventId })
+      .populate("user", "first_name last_name email")
+      .populate("team", "name");
+  }
 }
 
 export default new TicketsDAO();
